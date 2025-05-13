@@ -113,44 +113,43 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   }, [userId, socket]);
 
   useEffect(() => {
-    socket.on('messageRead', ({ receiverId, senderId }) => {
-      if (selectedChat && user && user._id) {
-        if (!selectedChat.isGroup && selectedChat._id === receiverId && user._id === senderId) {
-          setFriendMessages((prev) => ({
-            ...prev,
-            [receiverId]: Array.isArray(prev[receiverId])
-              ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
-              : [],
-          }));
-          setMessages((prev) =>
-            Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
-          );
-        } else if (selectedChat.isGroup && selectedChat._id === receiverId) {
-          setGroupMessages((prev) => ({
-            ...prev,
-            [receiverId]: Array.isArray(prev[receiverId])
-              ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
-              : [],
-          }));
-          setMessages((prev) =>
-            Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
-          );
-        }
-      }
-    });
+    const handleMessageRead = ({ receiverId, senderId }) => {
+      if (!selectedChat || !user || !user._id) return;
 
+      if (!selectedChat.isGroup && selectedChat._id === receiverId && user._id === senderId) {
+        setFriendMessages((prev) => ({
+          ...prev,
+          [receiverId]: Array.isArray(prev[receiverId])
+            ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
+            : [],
+        }));
+        setMessages((prev) =>
+          Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
+        );
+      } else if (selectedChat.isGroup && selectedChat._id === receiverId) {
+        setGroupMessages((prev) => ({
+          ...prev,
+          [receiverId]: Array.isArray(prev[receiverId])
+            ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
+            : [],
+        }));
+        setMessages((prev) =>
+          Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
+        );
+      }
+    };
+
+    socket.on('messageRead', handleMessageRead);
     return () => {
-      socket.off('messageRead');
+      socket.off('messageRead', handleMessageRead);
     };
   }, [selectedChat, user, socket]);
 
   useEffect(() => {
-    socket.on('userStatus', ({ userId, isOnline }) => {
+    const handleUserStatus = ({ userId, isOnline }) => {
       setFriends((prev) =>
         Array.isArray(prev)
-          ? prev.map((friend) =>
-              friend._id === userId ? { ...friend, isOnline } : friend
-            )
+          ? prev.map((friend) => (friend._id === userId ? { ...friend, isOnline } : friend))
           : []
       );
       setFriendRequests((prev) =>
@@ -163,15 +162,16 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       if (selectedChat && selectedChat._id === userId) {
         setSelectedChat((prev) => (prev ? { ...prev, isOnline } : null));
       }
-    });
+    };
 
+    socket.on('userStatus', handleUserStatus);
     return () => {
-      socket.off('userStatus');
+      socket.off('userStatus', handleUserStatus);
     };
   }, [selectedChat, socket]);
 
   useEffect(() => {
-    socket.on('receiveMessage', (message) => {
+    const handleReceiveMessage = (message) => {
       if (!message || !message.receiverId) return;
 
       const isDuplicate = messages.some((msg) => msg._id === message._id);
@@ -211,10 +211,11 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           return prev;
         });
       }
-    });
+    };
 
+    socket.on('receiveMessage', handleReceiveMessage);
     return () => {
-      socket.off('receiveMessage');
+      socket.off('receiveMessage', handleReceiveMessage);
     };
   }, [user, selectedChat, socket, messages]);
 
@@ -230,7 +231,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           const data = await getMessages(selectedChat._id, selectedChat.isGroup);
           const messagesArray = Array.isArray(data.data) ? data.data : [];
           setMessages(messagesArray);
-
           if (selectedChat.isGroup) {
             setGroupMessages((prev) => ({
               ...prev,
@@ -400,14 +400,11 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   };
 
   const handleSelectChat = async (chat, isGroup = false) => {
-    setSelectedChat({ ...chat, isGroup } || null);
+    setSelectedChat(chat ? { ...chat, isGroup } : null);
     setSelectedProfile(null);
     setSelectedGroup(null);
     setCurrentView('chat');
-    if (
-      Array.isArray(messages) &&
-      messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)
-    ) {
+    if (chat && Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)) {
       await markAsRead();
     }
   };
@@ -459,8 +456,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       const newMessage = await sendMessage(selectedChat._id, selectedChat.isGroup, message, file);
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg._id !== tempId);
-        const exists = filtered.some((msg) => msg._id === newMessage._id);
-        return exists ? filtered : [...filtered, { ...newMessage, senderId: user }];
+        return filtered.some((msg) => msg._id === newMessage._id) ? filtered : [...filtered, newMessage];
       });
 
       if (selectedChat.isGroup) {
@@ -471,11 +467,10 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [newMessage],
         }));
       } else {
-        const friendId = selectedChat._id;
         setFriendMessages((prev) => ({
           ...prev,
-          [friendId]: Array.isArray(prev[friendId])
-            ? [...prev[friendId], newMessage]
+          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+            ? [...prev[selectedChat._id], newMessage]
             : [newMessage],
         }));
       }
