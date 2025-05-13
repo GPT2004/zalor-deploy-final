@@ -11,7 +11,9 @@ import {
   deleteGroup,
   getMessages,
   markMessagesAsRead,
-  
+  sendMessage,
+  recallMessage,
+  editMessage,
 } from '../services/api';
 import EditGroup from './EditGroup';
 import Profile from './Profile';
@@ -112,18 +114,28 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
   useEffect(() => {
     socket.on('messageRead', ({ receiverId, senderId }) => {
-      if (selectedChat && !selectedChat.isGroup && selectedChat._id === receiverId && user?._id === senderId) {
-        setFriendMessages((prev) => ({
-          ...prev,
-          [receiverId]: Array.isArray(prev[receiverId]) ? prev[receiverId].map((msg) => ({ ...msg, isRead: true })) : [],
-        }));
-        setMessages((prev) => Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []);
-      } else if (selectedChat?.isGroup && selectedChat._id === receiverId) {
-        setGroupMessages((prev) => ({
-          ...prev,
-          [receiverId]: Array.isArray(prev[receiverId]) ? prev[receiverId].map((msg) => ({ ...msg, isRead: true })) : [],
-        }));
-        setMessages((prev) => Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []);
+      if (selectedChat && user && user._id) {
+        if (!selectedChat.isGroup && selectedChat._id === receiverId && user._id === senderId) {
+          setFriendMessages((prev) => ({
+            ...prev,
+            [receiverId]: Array.isArray(prev[receiverId])
+              ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
+              : [],
+          }));
+          setMessages((prev) =>
+            Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
+          );
+        } else if (selectedChat.isGroup && selectedChat._id === receiverId) {
+          setGroupMessages((prev) => ({
+            ...prev,
+            [receiverId]: Array.isArray(prev[receiverId])
+              ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
+              : [],
+          }));
+          setMessages((prev) =>
+            Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
+          );
+        }
       }
     });
 
@@ -160,43 +172,51 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
   useEffect(() => {
     socket.on('receiveMessage', (message) => {
-      if (message && message.isGroup && message.receiverId) {
+      if (!message || !message.receiverId) return;
+
+      const isDuplicate = messages.some((msg) => msg._id === message._id);
+      if (isDuplicate) return;
+
+      if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
           [message.receiverId]: Array.isArray(prev[message.receiverId])
-            ? [...prev[message.receiverId], { ...message, isRead: user?._id !== message.senderId._id }]
-            : [{ ...message, isRead: user?._id !== message.senderId._id }],
+            ? [
+                ...prev[message.receiverId],
+                { ...message, isRead: user?._id !== message.senderId?._id },
+              ]
+            : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
-      } else if (message && message.senderId && message.receiverId) {
+      } else {
         const friendId = message.senderId._id === user?._id ? message.receiverId : message.senderId._id;
         setFriendMessages((prev) => ({
           ...prev,
           [friendId]: Array.isArray(prev[friendId])
-            ? [...prev[friendId], { ...message, isRead: user?._id !== message.senderId._id }]
-            : [{ ...message, isRead: user?._id !== message.senderId._id }],
+            ? [
+                ...prev[friendId],
+                { ...message, isRead: user?._id !== message.senderId?._id },
+              ]
+            : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       }
 
-      if (selectedChat && selectedChat._id) {
-        const chatId = message.isGroup ? message.receiverId : (message.senderId._id === user?._id ? message.receiverId : message.senderId._id);
-        if (chatId === selectedChat._id) {
-          setMessages((prev) => {
-            const exists = Array.isArray(prev) && prev.some((msg) => msg._id === message._id);
-            if (!exists) {
-              return Array.isArray(prev)
-                ? [...prev, { ...message, isRead: user?._id !== message.senderId._id }]
-                : [{ ...message, isRead: user?._id !== message.senderId._id }];
-            }
-            return prev;
-          });
-        }
+      if (selectedChat && selectedChat._id === message.receiverId) {
+        setMessages((prev) => {
+          const exists = Array.isArray(prev) && prev.some((msg) => msg._id === message._id);
+          if (!exists) {
+            return Array.isArray(prev)
+              ? [...prev, { ...message, isRead: user?._id !== message.senderId?._id }]
+              : [{ ...message, isRead: user?._id !== message.senderId?._id }];
+          }
+          return prev;
+        });
       }
     });
 
     return () => {
       socket.off('receiveMessage');
     };
-  }, [user, selectedChat, socket]);
+  }, [user, selectedChat, socket, messages]);
 
   useEffect(() => {
     if (selectedChat && user && user._id && selectedChat._id) {
@@ -238,7 +258,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       user &&
       user._id &&
       Array.isArray(messages) &&
-      messages.some((msg) => !msg.isRead && msg.senderId._id !== user._id)
+      messages.some((msg) => !msg.isRead && msg.senderId?._id !== user._id)
     ) {
       try {
         await markMessagesAsRead(selectedChat._id, selectedChat.isGroup);
@@ -386,7 +406,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     setCurrentView('chat');
     if (
       Array.isArray(messages) &&
-      messages.some((msg) => !msg.isRead && msg.senderId._id !== user?._id)
+      messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)
     ) {
       await markAsRead();
     }
@@ -409,7 +429,10 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     if (!message.trim() && !file) return;
 
     if (!selectedChat || !selectedChat._id || !user || !user._id) {
-      console.error('Cannot send message: selectedChat or user is null');
+      console.error('Cannot send message: selectedChat or user is null', {
+        selectedChat,
+        user,
+      });
       return;
     }
 
@@ -418,7 +441,13 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       _id: tempId,
       senderId: user,
       content: message,
-      type: file ? (file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : 'file') : 'text',
+      type: file
+        ? file.type.startsWith('image')
+          ? 'image'
+          : file.type.startsWith('video')
+          ? 'video'
+          : 'file'
+        : 'text',
       createdAt: new Date().toISOString(),
       isRecalled: false,
       isRead: true,
@@ -431,10 +460,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg._id !== tempId);
         const exists = filtered.some((msg) => msg._id === newMessage._id);
-        if (!exists) {
-          return [...filtered, { ...newMessage, senderId: user }];
-        }
-        return filtered;
+        return exists ? filtered : [...filtered, { ...newMessage, senderId: user }];
       });
 
       if (selectedChat.isGroup) {
@@ -468,9 +494,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     try {
       await recallMessage(messageId);
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId ? { ...msg, isRecalled: true } : msg
-        )
+        prev.map((msg) => (msg._id === messageId ? { ...msg, isRecalled: true } : msg))
       );
       setShowMessageOptions(null);
     } catch (err) {
@@ -482,9 +506,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     try {
       await editMessage(messageId, newContent);
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId ? { ...msg, content: newContent } : msg
-        )
+        prev.map((msg) => (msg._id === messageId ? { ...msg, content: newContent } : msg))
       );
       setShowMessageOptions(null);
     } catch (err) {
@@ -504,7 +526,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   const removePreview = () => {
     setFile(null);
     setPreview(null);
-    URL.revokeObjectURL(preview);
+    if (preview) URL.revokeObjectURL(preview);
   };
 
   const toggleEmojiPicker = () => {
@@ -546,7 +568,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     if (!Array.isArray(messages)) return false;
     return messages.some((msg) => msg?.senderId?._id !== user?._id && !msg.isRead);
   };
-  
 
   return (
     <div className="home-container">
@@ -909,114 +930,117 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             ) : selectedChat ? (
               <div className="chat-box">
                 <div className="messages" ref={messagesEndRef}>
-                  {Array.isArray(messages) && messages.map((msg) => (
-                    <div
-                      key={msg._id}
-                      className={`message ${
-                        msg.senderId?._id === user?._id ? 'sent' : 'received'
-                      }`}
-                    >
-                      {msg.senderId?._id !== user?._id && (
-                        <img
-                          src={msg.senderId.avatar || 'https://via.placeholder.com/30'}
-                          alt="Avatar"
-                          className="message-avatar"
-                        />
-                      )}
-                      <div className="message-content">
+                  {Array.isArray(messages) &&
+                    messages.map((msg) => (
+                      <div
+                        key={msg._id}
+                        className={`message ${
+                          msg.senderId?._id === user?._id ? 'sent' : 'received'
+                        }`}
+                      >
                         {msg.senderId?._id !== user?._id && (
-                          <span className="message-sender">{msg.senderId.name}</span>
+                          <img
+                            src={msg.senderId.avatar || 'https://via.placeholder.com/30'}
+                            alt="Avatar"
+                            className="message-avatar"
+                          />
                         )}
-                        {msg.isRecalled ? (
-                          <p className="recalled-message">Tin nhắn đã bị thu hồi</p>
-                        ) : (
-                          <>
-                            {msg.type === 'text' && <p>{msg.content}</p>}
-                            {msg.type === 'image' && (
-                              <img src={msg.content} alt="Sent" className="message-media" />
-                            )}
-                            {msg.type === 'video' && (
-                              <video controls src={msg.content} className="message-media" />
-                            )}
-                            {msg.type === 'file' && (
-                              <div className="file-message">
-                                <a
-                                  href={msg.content}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="file-link"
-                                >
-                                  <span className="file-icon">📄</span>
-                                  <span className="file-text">
-                                    {msg.fileName || 'Tải file'}
-                                  </span>
-                                </a>
-                              </div>
-                            )}
-                            {msg.type === 'emoji' && <p>{msg.content}</p>}
-                            <div className="message-footer">
-                              <span className="message-time">{formatTime(msg.createdAt)}</span>
-                              {selectedEmoji[msg._id] && (
-                                <span className="message-emoji-reaction">
-                                  {selectedEmoji[msg._id]} 1
-                                </span>
+                        <div className="message-content">
+                          {msg.senderId?._id !== user?._id && (
+                            <span className="message-sender">{msg.senderId.name}</span>
+                          )}
+                          {msg.isRecalled ? (
+                            <p className="recalled-message">Tin nhắn đã bị thu hồi</p>
+                          ) : (
+                            <>
+                              {msg.type === 'text' && <p>{msg.content}</p>}
+                              {msg.type === 'image' && (
+                                <img src={msg.content} alt="Sent" className="message-media" />
                               )}
-                              <div className="message-reaction">
-                                <button
-                                  className="like-button"
-                                  onClick={() => toggleEmojiReactions(msg._id)}
-                                >
-                                  👍
-                                </button>
-                                {showEmojiReactions === msg._id && (
-                                  <div className="emoji-reaction-picker">
-                                    <button onClick={() => handleEmojiReaction(msg._id, '👍')}>
-                                      👍
-                                    </button>
-                                    <button onClick={() => handleEmojiReaction(msg._id, '❤️')}>
-                                      ❤️
-                                    </button>
-                                    <button onClick={() => handleEmojiReaction(msg._id, '😂')}>
-                                      😂
-                                    </button>
-                                    <button onClick={() => handleEmojiReaction(msg._id, '😮')}>
-                                      😮
-                                    </button>
-                                    <button onClick={() => handleEmojiReaction(msg._id, '😢')}>
-                                      😢
-                                    </button>
-                                    <button onClick={() => handleEmojiReaction(msg._id, '😡')}>
-                                      😡
-                                    </button>
-                                  </div>
+                              {msg.type === 'video' && (
+                                <video controls src={msg.content} className="message-media" />
+                              )}
+                              {msg.type === 'file' && (
+                                <div className="file-message">
+                                  <a
+                                    href={msg.content}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="file-link"
+                                  >
+                                    <span className="file-icon">📄</span>
+                                    <span className="file-text">
+                                      {msg.fileName || 'Tải file'}
+                                    </span>
+                                  </a>
+                                </div>
+                              )}
+                              {msg.type === 'emoji' && <p>{msg.content}</p>}
+                              <div className="message-footer">
+                                <span className="message-time">{formatTime(msg.createdAt)}</span>
+                                {selectedEmoji[msg._id] && (
+                                  <span className="message-emoji-reaction">
+                                    {selectedEmoji[msg._id]} 1
+                                  </span>
                                 )}
-                              </div>
-                              {msg.senderId?._id === user?._id && (
-                                <div className="message-options">
-                                  <button onClick={() => handleMessageOptions(msg._id)}>...</button>
-                                  {showMessageOptions === msg._id && (
-                                    <div className="chat-message-options-dropdown">
-                                      <button onClick={() => recallMessage(msg._id)}>Thu hồi</button>
-                                      <button
-                                        onClick={() =>
-                                          editMessage(
-                                            msg._id,
-                                            prompt('Nhập nội dung mới:', msg.content)
-                                          )
-                                        }
-                                      >
-                                        Chỉnh sửa
+                                <div className="message-reaction">
+                                  <button
+                                    className="like-button"
+                                    onClick={() => toggleEmojiReactions(msg._id)}
+                                  >
+                                    👍
+                                  </button>
+                                  {showEmojiReactions === msg._id && (
+                                    <div className="emoji-reaction-picker">
+                                      <button onClick={() => handleEmojiReaction(msg._id, '👍')}>
+                                        👍
+                                      </button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '❤️')}>
+                                        ❤️
+                                      </button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😂')}>
+                                        😂
+                                      </button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😮')}>
+                                        😮
+                                      </button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😢')}>
+                                        😢
+                                      </button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😡')}>
+                                        😡
                                       </button>
                                     </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                          </>
-                        )}
+                                {msg.senderId?._id === user?._id && (
+                                  <div className="message-options">
+                                    <button onClick={() => handleMessageOptions(msg._id)}>...</button>
+                                    {showMessageOptions === msg._id && (
+                                      <div className="chat-message-options-dropdown">
+                                        <button onClick={() => recallMessage(msg._id)}>
+                                          Thu hồi
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            editMessage(
+                                              msg._id,
+                                              prompt('Nhập nội dung mới:', msg.content)
+                                            )
+                                          }
+                                        >
+                                          Chỉnh sửa
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
                 <div className="message-input">
                   <button className="icon-button" onClick={toggleEmojiPicker}>
