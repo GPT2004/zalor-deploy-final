@@ -568,7 +568,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     <div className="home-container">
       <div className="sidebar">
         <div className="sidebar-header">
-          <h1>Zalor</h1>
+          <h1 onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Zalor</h1>
           <div className="search-bar">
             <input
               type="text"
@@ -896,8 +896,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             {currentView === 'create-group' ? (
               <CreateGroup
                 onBack={() => setCurrentView('chat')}
-                onSuccess={() => {
-                  getGroups().then(({ data }) => setGroups(data || []));
+                onSuccess={(newGroup) => {
+                  setGroups((prev) => [...prev, newGroup]);
                   setCurrentView('chat');
                 }}
               />
@@ -910,7 +910,13 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                 }}
               />
             ) : selectedProfile ? (
-              <Profile userId={selectedProfile._id} currentUser={user} />
+              <Profile
+                userId={selectedProfile._id}
+                currentUser={user}
+                onUpdateAvatar={(newAvatar) => {
+                  setUser((prev) => (prev ? { ...prev, avatar: newAvatar } : prev));
+                }}
+              />
             ) : selectedGroup ? (
               <EditGroup
                 group={selectedGroup}
