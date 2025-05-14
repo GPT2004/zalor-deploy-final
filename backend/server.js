@@ -72,18 +72,18 @@ io.on('connection', (socket) => {
         console.error(`Invalid userId received:`, userId);
         return;
       }
-  
+
       const user = await User.findByIdAndUpdate(
         userId,
         { isOnline: true },
         { new: true }
       );
-  
+
       if (!user) {
         console.error(`User with ID ${userId} not found`);
         return;
       }
-  
+
       socket.userId = userId;
       io.emit('userStatus', { userId, isOnline: true });
       console.log(`User ${userId} is online`);
@@ -96,6 +96,30 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', (roomId) => {
     socket.join(roomId);
     console.log(`User ${socket.userId || 'unknown'} joined room: ${roomId}`);
+  });
+
+  // Xử lý gửi tin nhắn
+  socket.on('sendMessage', (message) => {
+    try {
+      const { roomId, receiverId, isGroup, ...msg } = message;
+
+      if (!roomId || !receiverId) {
+        console.error('Missing roomId or receiverId in message:', message);
+        return;
+      }
+
+      // Phát tin nhắn đến tất cả người dùng trong room (bao gồm cả người gửi)
+      io.to(roomId).emit('sendMessage', {
+        ...msg,
+        receiverId,
+        isGroup,
+        createdAt: new Date().toISOString(), // Đảm bảo timestamp
+      });
+
+      console.log(`Message sent to room ${roomId} by user ${socket.userId}`);
+    } catch (err) {
+      console.error('Error handling sendMessage:', err);
+    }
   });
 
   // Khi người dùng ngắt kết nối
