@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { createGroup, searchFriend } from '../services/api';
 import '../css/CreateGroup.css';
 
-const CreateGroup = () => {
-  const navigate = useNavigate();
+const CreateGroup = ({ onSuccess, onBack }) => {
   const [groupName, setGroupName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedUsers, setSearchedUsers] = useState([]);
@@ -33,21 +31,24 @@ const CreateGroup = () => {
   const handleCreateGroup = async () => {
     try {
       const memberIds = selectedMembers.map((member) => member._id);
-      await createGroup({ name: groupName, memberIds });
+      const { data } = await createGroup({ name: groupName, memberIds });
+
+      // Gọi onSuccess để thông báo cho Home về nhóm mới
+      if (onSuccess) {
+        onSuccess(data); // Truyền nhóm mới cho Home
+      }
+
       alert('Tạo nhóm thành công!');
-      navigate('/home');
     } catch (err) {
       console.error('Error creating group:', err);
       if (err.response?.status === 500) {
         alert('Nhóm đã được tạo, nhưng có lỗi xảy ra. Vui lòng kiểm tra danh sách nhóm.');
-        navigate('/home');
+        if (onBack) onBack(); // Quay lại màn hình chat nếu có lỗi 500
       } else {
         alert(err.response?.data?.msg || 'Tạo nhóm thất bại.');
       }
     }
   };
-
-  
 
   return (
     <div className="create-group">
@@ -100,7 +101,10 @@ const CreateGroup = () => {
             </div>
           )}
           <div className="form-actions">
-            <button onClick={handleCreateGroup} disabled={!groupName}>Tạo nhóm</button>
+            <button onClick={handleCreateGroup} disabled={!groupName}>
+              Tạo nhóm
+            </button>
+            <button onClick={onBack}>Hủy</button>
           </div>
         </div>
       </div>
