@@ -169,10 +169,10 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   useEffect(() => {
     const handleReceiveMessage = (message) => {
       if (!message || !message.receiverId) return;
-
+  
       // Kiểm tra xem tin nhắn đã tồn tại chưa để tránh trùng lặp
       if (messages.some((msg) => msg._id === message._id)) return;
-
+  
       // Cập nhật groupMessages nếu là tin nhắn nhóm
       if (message.isGroup) {
         setGroupMessages((prev) => ({
@@ -185,7 +185,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         // Cập nhật friendMessages nếu là tin nhắn cá nhân
         const senderId = message.senderId?._id || message.senderId;
         const friendId = senderId === user?._id ? message.receiverId : senderId;
-
+  
         setFriendMessages((prev) => ({
           ...prev,
           [friendId]: Array.isArray(prev[friendId])
@@ -193,16 +193,27 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       }
-
+  
       // Cập nhật messages nếu đang ở trong cuộc trò chuyện đúng
-      if (selectedChat && selectedChat._id === message.receiverId) {
-        setMessages((prev) => {
-          if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
-          return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
-        });
+      if (selectedChat) {
+        if (message.isGroup && selectedChat._id === message.receiverId) {
+          setMessages((prev) => {
+            if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
+            return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
+          });
+        } else if (!message.isGroup) {
+          const senderId = message.senderId?._id || message.senderId;
+          const friendId = senderId === user?._id ? message.receiverId : senderId;
+          if (selectedChat._id === friendId) {
+            setMessages((prev) => {
+              if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
+              return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
+            });
+          }
+        }
       }
     };
-
+  
     socket.on('receiveMessage', handleReceiveMessage);
     return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [user, selectedChat, socket, messages]);
@@ -220,7 +231,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         ? selectedChat._id
         : [user._id, selectedChat._id].sort().join('-');
       socket.emit('joinRoom', roomId);
-
+  
       const fetchMessages = async () => {
         try {
           const { data } = await getMessages(selectedChat._id, selectedChat.isGroup);
@@ -242,10 +253,17 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           setMessages([]);
         }
       };
-
-      fetchMessages();
+  
+      // Đồng bộ messages từ friendMessages hoặc groupMessages nếu đã có
+      if (selectedChat.isGroup && groupMessages[selectedChat._id]) {
+        setMessages(groupMessages[selectedChat._id]);
+      } else if (!selectedChat.isGroup && friendMessages[selectedChat._id]) {
+        setMessages(friendMessages[selectedChat._id]);
+      } else {
+        fetchMessages();
+      }
     }
-  }, [selectedChat, user, socket]);
+  }, [selectedChat, user, socket, friendMessages, groupMessages]);
 
   const markAsRead = async () => {
     if (
@@ -414,16 +432,17 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
   const sendMessage = async () => {
     if (!message.trim() && !file) return;
-
+  
     if (!selectedChat || !selectedChat._id || !user || !user._id) {
       console.error('Cannot send message: selectedChat or user is null', { selectedChat, user });
       return;
     }
-
+  
     const tempId = `temp-${Date.now()}-${Math.random()}`;
     const tempMessage = {
       _id: tempId,
-      senderId: user,
+      senderId: user._id, // Gửi senderId rõ ràng
+      receiverId: selectedChat._id, // Gửi receiverId rõ ràng
       content: message,
       type: file
         ? file.type.startsWith('image')
@@ -435,10 +454,12 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       createdAt: new Date().toISOString(),
       isRecalled: false,
       isRead: true,
+      isGroup: selectedChat.isGroup, // Gửi isGroup
+      file, // Gửi file nếu có
     };
-
+  
     setMessages((prev) => [...prev, tempMessage]);
-
+  
     try {
       const newMessage = await apiSendMessage(selectedChat._id, selectedChat.isGroup, message, file);
       setMessages((prev) =>
@@ -446,7 +467,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           .filter((msg) => msg._id !== tempId)
           .concat(newMessage)
       );
-
+  
       if (selectedChat.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -462,7 +483,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [newMessage],
         }));
       }
-
+  
       setMessage('');
       setFile(null);
       setPreview(null);

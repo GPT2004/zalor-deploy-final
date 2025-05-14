@@ -3,14 +3,15 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path'); // Thêm path để phục vụ file tĩnh
+const path = require('path');
 require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const friendsRoutes = require('./routes/friends');
 const usersRoutes = require('./routes/users');
 const groupsRoutes = require('./routes/groups');
 const messageRoutes = require('./routes/messages');
-const User = require('./models/User'); // Import model User để cập nhật trạng thái
+const User = require('./models/User');
+const Message = require('./models/Message'); // Giả sử bạn có model Message
 
 process.env.LANG = 'en_US.UTF-8';
 
@@ -20,7 +21,7 @@ const server = http.createServer(app);
 // Cấu hình Socket.IO với CORS động
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Sử dụng biến môi trường
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['GET', 'POST'],
   },
 });
@@ -32,7 +33,7 @@ app.set('socketio', io);
 app.use(express.json());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Chỉ cho phép từ domain frontend
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
@@ -99,24 +100,38 @@ io.on('connection', (socket) => {
   });
 
   // Xử lý gửi tin nhắn
-  socket.on('sendMessage', (message) => {
+  socket.on('sendMessage', async (message) => {
     try {
-      const { roomId, receiverId, isGroup, ...msg } = message;
+      const { receiverId, isGroup, content, senderId, file } = message;
 
-      if (!roomId || !receiverId) {
-        console.error('Missing roomId or receiverId in message:', message);
+      if (!receiverId || !senderId || !content) {
+        console.error('Missing required fields in message:', message);
         return;
       }
 
-      // Phát tin nhắn đến tất cả người dùng trong room (bao gồm cả người gửi)
-      io.to(roomId).emit('sendMessage', {
-        ...msg,
+      // Tính roomId dựa trên isGroup
+      const roomId = isGroup
+        ? receiverId
+        : [senderId, receiverId].sort().join('-');
+
+      // Lưu tin nhắn vào cơ sở dữ liệu
+      const newMessage = new Message({
+        senderId,
         receiverId,
+        content,
         isGroup,
-        createdAt: new Date().toISOString(), // Đảm bảo timestamp
+        file,
+        createdAt: new Date(),
+      });
+      await newMessage.save();
+
+      // Phát tin nhắn đến tất cả người dùng trong room (bao gồm cả người gửi)
+      io.to(roomId).emit('receiveMessage', {
+        ...newMessage.toObject(),
+        isRead: senderId !== receiverId, // Đặt isRead dựa trên người nhận
       });
 
-      console.log(`Message sent to room ${roomId} by user ${socket.userId}`);
+      console.log(`Message sent to room ${roomId} by user ${senderId}`);
     } catch (err) {
       console.error('Error handling sendMessage:', err);
     }
@@ -126,7 +141,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     try {
       if (socket.userId) {
-        // Cập nhật trạng thái offline trong cơ sở dữ liệu
         const user = await User.findByIdAndUpdate(
           socket.userId,
           { isOnline: false },
@@ -137,7 +151,6 @@ io.on('connection', (socket) => {
           return;
         }
 
-        // Thông báo trạng thái offline đến tất cả client
         io.emit('userStatus', { userId: socket.userId, isOnline: false });
         console.log(`User ${socket.userId} is offline`);
       }
