@@ -170,10 +170,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     const handleReceiveMessage = (message) => {
       if (!message || !message.receiverId) return;
   
-      // Kiểm tra xem tin nhắn đã tồn tại chưa để tránh trùng lặp
       if (messages.some((msg) => msg._id === message._id)) return;
   
-      // Cập nhật groupMessages nếu là tin nhắn nhóm
       if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -182,7 +180,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       } else {
-        // Cập nhật friendMessages nếu là tin nhắn cá nhân
         const senderId = message.senderId?._id || message.senderId;
         const friendId = senderId === user?._id ? message.receiverId : senderId;
   
@@ -194,7 +191,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         }));
       }
   
-      // Cập nhật messages nếu đang ở trong cuộc trò chuyện đúng
       if (selectedChat) {
         if (message.isGroup && selectedChat._id === message.receiverId) {
           setMessages((prev) => {
@@ -218,7 +214,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [user, selectedChat, socket, messages]);
 
-  // Thêm useEffect để tự động cuộn xuống tin nhắn mới
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -254,7 +249,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         }
       };
   
-      // Đồng bộ messages từ friendMessages hoặc groupMessages nếu đã có
       if (selectedChat.isGroup && groupMessages[selectedChat._id]) {
         setMessages(groupMessages[selectedChat._id]);
       } else if (!selectedChat.isGroup && friendMessages[selectedChat._id]) {
@@ -441,8 +435,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     const tempId = `temp-${Date.now()}-${Math.random()}`;
     const tempMessage = {
       _id: tempId,
-      senderId: user._id, // Gửi senderId rõ ràng
-      receiverId: selectedChat._id, // Gửi receiverId rõ ràng
+      senderId: user._id,
+      receiverId: selectedChat._id,
       content: message,
       type: file
         ? file.type.startsWith('image')
@@ -454,8 +448,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       createdAt: new Date().toISOString(),
       isRecalled: false,
       isRead: true,
-      isGroup: selectedChat.isGroup, // Gửi isGroup
-      file, // Gửi file nếu có
+      isGroup: selectedChat.isGroup,
+      file,
     };
   
     setMessages((prev) => [...prev, tempMessage]);
@@ -569,6 +563,12 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   const hasUnreadMessages = (messages) => {
     if (!Array.isArray(messages)) return false;
     return messages.some((msg) => msg?.senderId?._id !== user?._id && !msg.isRead);
+  };
+
+  // Hàm xử lý cập nhật avatar
+  const handleUpdateAvatar = (newAvatar) => {
+    setUser((prev) => (prev ? { ...prev, avatar: newAvatar } : prev));
+    setSelectedProfile((prev) => (prev ? { ...prev, avatar: newAvatar } : prev));
   };
 
   return (
@@ -859,9 +859,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
               <Profile
                 userId={selectedProfile._id}
                 currentUser={user}
-                onUpdateAvatar={(newAvatar) => {
-                  setUser((prev) => (prev ? { ...prev, avatar: newAvatar } : prev));
-                }}
+                onUpdateAvatar={handleUpdateAvatar} // Truyền hàm handleUpdateAvatar vào Profile
               />
             ) : selectedGroup ? (
               <EditGroup

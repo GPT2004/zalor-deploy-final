@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getUserById, updateProfile } from '../services/api';
 import '../css/Profile.css';
 
-const Profile = ({ userId, currentUser }) => {
+const Profile = ({ userId, currentUser, onUpdateAvatar }) => {
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -79,6 +79,12 @@ const Profile = ({ userId, currentUser }) => {
       setUser(data);
       setPreview(data.avatar || 'https://via.placeholder.com/100');
       setError(null);
+
+      // Gọi onUpdateAvatar để thông báo cho Home về avatar mới
+      if (onUpdateAvatar && data.avatar) {
+        onUpdateAvatar(data.avatar);
+      }
+
       alert('Cập nhật ảnh đại diện thành công!');
     } catch (err) {
       console.error('Lỗi khi tải ảnh lên:', err);
