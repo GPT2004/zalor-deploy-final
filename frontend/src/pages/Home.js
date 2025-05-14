@@ -48,7 +48,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   const [friendMessages, setFriendMessages] = useState({});
   const [groupMessages, setGroupMessages] = useState({});
   const messagesEndRef = useRef(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Trạng thái để hiển thị/ẩn sidebar
 
+  // Fetch dữ liệu ban đầu
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -106,12 +108,14 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     fetchData();
   }, [navigate, setIsAuthenticated]);
 
+  // Kết nối socket
   useEffect(() => {
     if (userId) {
       socket.emit('userConnected', userId);
     }
   }, [userId, socket]);
 
+  // Xử lý đọc tin nhắn
   useEffect(() => {
     const handleMessageRead = ({ receiverId, senderId }) => {
       if (!selectedChat || !user || !user._id) return;
@@ -143,6 +147,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('messageRead', handleMessageRead);
   }, [selectedChat, user, socket]);
 
+  // Xử lý trạng thái người dùng
   useEffect(() => {
     const handleUserStatus = ({ userId, isOnline }) => {
       setFriends((prev) =>
@@ -166,12 +171,13 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('userStatus', handleUserStatus);
   }, [selectedChat, socket]);
 
+  // Xử lý nhận tin nhắn
   useEffect(() => {
     const handleReceiveMessage = (message) => {
       if (!message || !message.receiverId) return;
-  
+
       if (messages.some((msg) => msg._id === message._id)) return;
-  
+
       if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -182,7 +188,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       } else {
         const senderId = message.senderId?._id || message.senderId;
         const friendId = senderId === user?._id ? message.receiverId : senderId;
-  
+
         setFriendMessages((prev) => ({
           ...prev,
           [friendId]: Array.isArray(prev[friendId])
@@ -190,7 +196,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       }
-  
+
       if (selectedChat) {
         if (message.isGroup && selectedChat._id === message.receiverId) {
           setMessages((prev) => {
@@ -209,24 +215,26 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         }
       }
     };
-  
+
     socket.on('receiveMessage', handleReceiveMessage);
     return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [user, selectedChat, socket, messages]);
 
+  // Tự động cuộn đến tin nhắn mới nhất
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
+  // Tham gia phòng chat và lấy tin nhắn
   useEffect(() => {
     if (selectedChat && user && user._id && selectedChat._id) {
       const roomId = selectedChat.isGroup
         ? selectedChat._id
         : [user._id, selectedChat._id].sort().join('-');
       socket.emit('joinRoom', roomId);
-  
+
       const fetchMessages = async () => {
         try {
           const { data } = await getMessages(selectedChat._id, selectedChat.isGroup);
@@ -248,7 +256,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           setMessages([]);
         }
       };
-  
+
       if (selectedChat.isGroup && groupMessages[selectedChat._id]) {
         setMessages(groupMessages[selectedChat._id]);
       } else if (!selectedChat.isGroup && friendMessages[selectedChat._id]) {
@@ -259,6 +267,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     }
   }, [selectedChat, user, socket, friendMessages, groupMessages]);
 
+  // Đánh dấu tin nhắn là đã đọc
   const markAsRead = async () => {
     if (
       selectedChat &&
@@ -426,12 +435,12 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
   const sendMessage = async () => {
     if (!message.trim() && !file) return;
-  
+
     if (!selectedChat || !selectedChat._id || !user || !user._id) {
       console.error('Cannot send message: selectedChat or user is null', { selectedChat, user });
       return;
     }
-  
+
     const tempId = `temp-${Date.now()}-${Math.random()}`;
     const tempMessage = {
       _id: tempId,
@@ -451,9 +460,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       isGroup: selectedChat.isGroup,
       file,
     };
-  
+
     setMessages((prev) => [...prev, tempMessage]);
-  
+
     try {
       const newMessage = await apiSendMessage(selectedChat._id, selectedChat.isGroup, message, file);
       setMessages((prev) =>
@@ -461,7 +470,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           .filter((msg) => msg._id !== tempId)
           .concat(newMessage)
       );
-  
+
       if (selectedChat.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -477,7 +486,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [newMessage],
         }));
       }
-  
+
       setMessage('');
       setFile(null);
       setPreview(null);
@@ -565,17 +574,29 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return messages.some((msg) => msg?.senderId?._id !== user?._id && !msg.isRead);
   };
 
-  // Hàm xử lý cập nhật avatar
   const handleUpdateAvatar = (newAvatar) => {
     setUser((prev) => (prev ? { ...prev, avatar: newAvatar } : prev));
     setSelectedProfile((prev) => (prev ? { ...prev, avatar: newAvatar } : prev));
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <div className="home-container">
-      <div className="sidebar">
+      {/* Overlay để tắt sidebar trên điện thoại */}
+      <div
+        className={`overlay ${isSidebarOpen ? 'active' : ''}`}
+        onClick={toggleSidebar}
+      ></div>
+
+      {/* Sidebar */}
+      <div className={`sidebar ${isSidebarOpen ? 'active' : ''}`}>
         <div className="sidebar-header">
-          <h1 onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Zalor</h1>
+          <h1 onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
+            Zalor
+          </h1>
           <div className="search-bar">
             <input
               type="text"
@@ -766,8 +787,13 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="main-content">
         <div className="chat-header">
+          {/* Nút hamburger để hiển thị/ẩn sidebar trên điện thoại */}
+          <button className="hamburger-menu" onClick={toggleSidebar}>
+            ☰
+          </button>
           <div className="chat-header-info">
             {selectedChat && !selectedProfile && !selectedGroup && currentView === 'chat' && (
               <>
@@ -859,7 +885,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
               <Profile
                 userId={selectedProfile._id}
                 currentUser={user}
-                onUpdateAvatar={handleUpdateAvatar} // Truyền hàm handleUpdateAvatar vào Profile
+                onUpdateAvatar={handleUpdateAvatar}
               />
             ) : selectedGroup ? (
               <EditGroup

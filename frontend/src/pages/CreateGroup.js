@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createGroup, searchFriend } from '../services/api';
 import '../css/CreateGroup.css';
 
@@ -7,6 +7,19 @@ const CreateGroup = ({ onSuccess, onBack }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedUsers, setSearchedUsers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const inputRef = useRef(null); // Ref để focus vào input
+
+  // Xử lý bàn phím ảo trên thiết bị di động
+  useEffect(() => {
+    const handleResize = () => {
+      if (inputRef.current && document.activeElement === inputRef.current) {
+        inputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSearchUsers = async () => {
     try {
@@ -33,7 +46,6 @@ const CreateGroup = ({ onSuccess, onBack }) => {
       const memberIds = selectedMembers.map((member) => member._id);
       const { data } = await createGroup({ name: groupName, memberIds });
 
-      // Gọi onSuccess để thông báo cho Home về nhóm mới
       if (onSuccess) {
         onSuccess(data); // Truyền nhóm mới cho Home
       }
@@ -54,6 +66,9 @@ const CreateGroup = ({ onSuccess, onBack }) => {
     <div className="create-group">
       <div className="create-group-container">
         <div className="create-group-header">
+          <button className="back-button" onClick={onBack}>
+            ←
+          </button>
           <h2>Tạo nhóm mới</h2>
         </div>
         <div className="create-group-content">
@@ -64,6 +79,7 @@ const CreateGroup = ({ onSuccess, onBack }) => {
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Nhập tên nhóm"
+              ref={inputRef}
             />
           </div>
           <div className="form-group">
@@ -74,6 +90,7 @@ const CreateGroup = ({ onSuccess, onBack }) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm bạn bè bằng tên"
+                ref={inputRef}
               />
               <button onClick={handleSearchUsers}>Tìm</button>
             </div>

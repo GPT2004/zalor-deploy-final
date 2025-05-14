@@ -8,6 +8,7 @@
   align-items: center;
   justify-content: flex-start;
   overflow-y: auto;
+  background-color: #1a2526;
 }
 
 .profile-content {
@@ -22,13 +23,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
   position: relative;
 }
 
 .profile-header h2 {
   font-size: 24px;
-  margin: 12px 0 0 0; /* Tạo khoảng cách giữa avatar và tên */
+  margin: 12px 0 0 0;
   z-index: 1;
   text-align: center;
   background-color: transparent;
@@ -38,7 +39,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 16px; /* Khoảng cách giữa ảnh và tên */
+  margin-bottom: 16px;
 }
 
 .profile-avatar {
@@ -52,6 +53,7 @@
   align-items: center;
   margin-bottom: 0;
   transition: transform 0.3s ease;
+  cursor: pointer;
 }
 
 .profile-avatar:hover {
@@ -89,6 +91,7 @@
   cursor: pointer;
   align-self: flex-start;
   margin-top: 10px;
+  min-width: 100px;
 }
 
 .profile-info button:hover {
@@ -102,13 +105,13 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .form-group label {
@@ -122,6 +125,7 @@
   color: white;
   border: 1px solid #ccc;
   border-radius: 4px;
+  font-size: 14px;
 }
 
 .form-group input:disabled {
@@ -132,6 +136,7 @@
 .form-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .form-actions button {
@@ -139,6 +144,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  min-width: 100px;
 }
 
 .form-actions button[type="submit"] {
@@ -163,4 +169,163 @@
   color: #dc3545;
   text-align: center;
   margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.loading-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.loading-message p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #ccc;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 15px;
+  }
+
+  .profile-header h2 {
+    font-size: 20px;
+  }
+
+  .profile-avatar {
+    width: 100px;
+    height: 100px;
+  }
+
+  .profile-info {
+    padding: 15px;
+  }
+
+  .profile-info p {
+    font-size: 14px;
+  }
+
+  .profile-info button {
+    padding: 6px 12px;
+    font-size: 14px;
+    min-width: 80px;
+  }
+
+  .profile-form {
+    padding: 15px;
+  }
+
+  .form-group label {
+    font-size: 14px;
+  }
+
+  .form-group input {
+    padding: 6px;
+    font-size: 12px;
+  }
+
+  .form-actions button {
+    padding: 6px 12px;
+    font-size: 14px;
+    min-width: 80px;
+  }
+
+  .error-message {
+    font-size: 12px;
+  }
+
+  .loading-message p {
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 10px;
+  }
+
+  .profile-header h2 {
+    font-size: 18px;
+  }
+
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .profile-info {
+    padding: 10px;
+  }
+
+  .profile-info p {
+    font-size: 12px;
+  }
+
+  .profile-info button {
+    padding: 5px 10px;
+    font-size: 12px;
+    min-width: 70px;
+  }
+
+  .profile-form {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .form-group label {
+    font-size: 12px;
+  }
+
+  .form-group input {
+    padding: 5px;
+    font-size: 10px;
+  }
+
+  .form-actions {
+    gap: 8px;
+  }
+
+  .form-actions button {
+    padding: 5px 10px;
+    font-size: 12px;
+    min-width: 70px;
+  }
+
+  .error-message {
+    font-size: 10px;
+  }
+
+  .loading-message p {
+    font-size: 12px;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+  }
 }

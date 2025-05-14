@@ -14,7 +14,21 @@ const Profile = ({ userId, currentUser, onUpdateAvatar }) => {
   const [preview, setPreview] = useState('');
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const nameInputRef = useRef(null); // Ref để focus vào input khi chỉnh sửa
 
+  // Xử lý bàn phím ảo trên thiết bị di động
+  useEffect(() => {
+    const handleResize = () => {
+      if (isEditing && nameInputRef.current && document.activeElement === nameInputRef.current) {
+        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isEditing]);
+
+  // Lấy dữ liệu người dùng
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -80,7 +94,6 @@ const Profile = ({ userId, currentUser, onUpdateAvatar }) => {
       setPreview(data.avatar || 'https://via.placeholder.com/100');
       setError(null);
 
-      // Gọi onUpdateAvatar để thông báo cho Home về avatar mới
       if (onUpdateAvatar && data.avatar) {
         onUpdateAvatar(data.avatar);
       }
@@ -168,6 +181,7 @@ const Profile = ({ userId, currentUser, onUpdateAvatar }) => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
+                  ref={nameInputRef}
                 />
               </div>
               <div className="form-group">
@@ -243,7 +257,10 @@ const Profile = ({ userId, currentUser, onUpdateAvatar }) => {
           )}
         </div>
       ) : (
-        <p>Đang tải thông tin...</p>
+        <div className="loading-message">
+          <p>Đang tải thông tin...</p>
+          <div className="spinner"></div>
+        </div>
       )}
     </div>
   );

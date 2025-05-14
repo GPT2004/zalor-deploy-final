@@ -1,27 +1,26 @@
-/* EditGroup.css */
-
 .edit-group-container {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
-  padding: 24px;
-  background-color: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  background-color: #1a2526;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  color: white;
 }
 
 .group-info-header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .group-avatar-section {
   display: flex;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .group-avatar {
@@ -40,36 +39,38 @@
 }
 
 .group-info-content {
-  font-size: 16px;
+  font-size: 14px;
   width: 100%;
 }
 
 .group-description h4,
 .members-section p,
 .add-member-section h4 {
-  margin-top: 20px;
-  margin-bottom: 10px;
+  margin-top: 15px;
+  margin-bottom: 8px;
   font-weight: bold;
+  font-size: 14px;
 }
 
 .description-display {
-  background-color: #f8f8f8;
+  background-color: #2c3e50;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 6px;
   margin-bottom: 10px;
 }
 
 .description-display p {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
 }
 
 .description-display button {
   padding: 6px 10px;
-  font-size: 14px;
+  font-size: 12px;
   background-color: #007bff;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
@@ -79,25 +80,30 @@
 
 .description-form textarea {
   width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #555;
   resize: none;
+  background-color: #2c3e50;
+  color: white;
+  font-size: 14px;
 }
 
 .form-actions {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .form-actions button {
   padding: 6px 12px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+  font-size: 12px;
+  min-width: 60px;
 }
 
 .form-actions button[type="submit"] {
@@ -111,7 +117,7 @@
 }
 
 .members-section {
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .dropdown-toggle {
@@ -119,23 +125,24 @@
   background-color: #17a2b8;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  margin-top: 8px;
+  font-size: 12px;
+  min-width: 100px;
 }
 
 .members-dropdown {
-  margin-top: 10px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 10px;
+  margin-top: 8px;
+  background-color: #2c3e50;
+  border-radius: 6px;
+  padding: 8px;
 }
 
 .member-item {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #34495e;
 }
 
 .remove-member-button {
@@ -143,45 +150,50 @@
   color: white;
   border: none;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .add-member-section {
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .search-bar {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .search-bar input {
   flex: 1;
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background-color: #2c3e50;
+  color: white;
+  font-size: 12px;
 }
 
 .search-bar button {
-  padding: 8px 12px;
+  padding: 6px 12px;
   background-color: #007bff;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .searched-users {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .user-item {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #34495e;
 }
 
 .user-item button {
@@ -189,19 +201,21 @@
   color: white;
   border: none;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .leave-group-button,
 .delete-group-button {
-  margin-top: 20px;
+  margin-top: 15px;
   padding: 8px 12px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
   width: 100%;
+  font-size: 14px;
 }
 
 .leave-group-button {
@@ -215,8 +229,172 @@
 }
 
 .error-message {
-  color: red;
+  color: #ff4444;
   margin-bottom: 10px;
   font-weight: bold;
   text-align: center;
+  font-size: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .edit-group-container {
+    padding: 12px;
+  }
+
+  .group-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .group-info-header h2 {
+    font-size: 18px;
+  }
+
+  .group-description h4,
+  .members-section p,
+  .add-member-section h4 {
+    font-size: 12px;
+  }
+
+  .description-display p {
+    font-size: 12px;
+  }
+
+  .description-display button {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .description-form textarea {
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .form-actions button {
+    padding: 4px 10px;
+    font-size: 10px;
+    min-width: 50px;
+  }
+
+  .dropdown-toggle {
+    padding: 4px 10px;
+    font-size: 10px;
+    min-width: 80px;
+  }
+
+  .members-dropdown {
+    padding: 6px;
+  }
+
+  .member-item {
+    padding: 4px 0;
+  }
+
+  .remove-member-button {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  .search-bar input {
+    padding: 5px;
+    font-size: 10px;
+  }
+
+  .search-bar button {
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+
+  .user-item button {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  .leave-group-button,
+  .delete-group-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .edit-group-container {
+    padding: 8px;
+  }
+
+  .group-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .group-info-header h2 {
+    font-size: 16px;
+  }
+
+  .group-description h4,
+  .members-section p,
+  .add-member-section h4 {
+    font-size: 10px;
+  }
+
+  .description-display p {
+    font-size: 10px;
+  }
+
+  .description-display button {
+    padding: 3px 6px;
+    font-size: 8px;
+  }
+
+  .description-form textarea {
+    font-size: 10px;
+    padding: 4px;
+  }
+
+  .form-actions button {
+    padding: 3px 8px;
+    font-size: 8px;
+    min-width: 40px;
+  }
+
+  .dropdown-toggle {
+    padding: 3px 8px;
+    font-size: 8px;
+    min-width: 70px;
+  }
+
+  .members-dropdown {
+    padding: 4px;
+  }
+
+  .member-item {
+    padding: 3px 0;
+  }
+
+  .remove-member-button {
+    padding: 2px 5px;
+    font-size: 8px;
+  }
+
+  .search-bar input {
+    padding: 4px;
+    font-size: 8px;
+  }
+
+  .search-bar button {
+    padding: 4px 8px;
+    font-size: 8px;
+  }
+
+  .user-item button {
+    padding: 2px 6px;
+    font-size: 8px;
+  }
+
+  .leave-group-button,
+  .delete-group-button {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
 }

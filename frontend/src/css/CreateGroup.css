@@ -10,24 +10,26 @@
   background-color: #1a2526;
   color: white;
   height: 100vh;
+  overflow-y: auto; /* Cho phép cuộn nếu nội dung dài */
 }
 
 .create-group .create-group-header {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 10px; /* Giảm khoảng cách trên điện thoại */
   width: 100%;
   max-width: 600px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
-.create-group .create-group-header button {
+.create-group .create-group-header .back-button {
   background: #ff4d4f;
   border: none;
   border-radius: 5px;
-  padding: 8px 16px;
+  padding: 8px 12px;
   color: white;
   cursor: pointer;
+  font-size: 16px;
 }
 
 .create-group .create-group-header h2 {
@@ -41,13 +43,14 @@
 }
 
 .create-group .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .create-group .form-group label {
   display: block;
   margin-bottom: 5px;
   font-weight: bold;
+  font-size: 14px; /* Giảm kích thước chữ trên điện thoại */
 }
 
 .create-group .form-group input {
@@ -57,6 +60,7 @@
   border-radius: 5px;
   background: #2c3e50;
   color: white;
+  font-size: 14px; /* Giảm kích thước chữ trên điện thoại */
 }
 
 .create-group .search-bar {
@@ -71,15 +75,17 @@
   border-radius: 5px;
   background: #2c3e50;
   color: white;
+  font-size: 14px;
 }
 
 .create-group .search-bar button {
-  padding: 8px;
+  padding: 8px 12px;
   background: #00c4b4;
   border: none;
   border-radius: 5px;
   color: white;
   cursor: pointer;
+  font-size: 14px;
 }
 
 .create-group .search-bar button:hover {
@@ -119,6 +125,7 @@
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .create-group .user-item button {
@@ -136,6 +143,7 @@
   justify-content: center;
   gap: 10px;
   margin-top: 20px;
+  flex-wrap: wrap; /* Cho phép nút xuống dòng trên màn hình nhỏ */
 }
 
 .create-group .form-actions button {
@@ -145,9 +153,133 @@
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-size: 14px;
+  min-width: 100px; /* Đảm bảo nút không quá nhỏ */
 }
 
 .create-group .form-actions button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .create-group .create-group-container {
+    padding: 15px;
+  }
+
+  .create-group .create-group-header h2 {
+    font-size: 20px;
+  }
+
+  .create-group .create-group-header .back-button {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .create-group .form-group label {
+    font-size: 12px;
+  }
+
+  .create-group .form-group input {
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .create-group .search-bar input {
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .create-group .search-bar button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .create-group .searched-users h4,
+  .create-group .selected-members h4 {
+    font-size: 12px;
+  }
+
+  .create-group .user-item,
+  .create-group .member-item {
+    padding: 8px;
+  }
+
+  .create-group .user-item button,
+  .create-group .member-item button {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .create-group .form-actions button {
+    padding: 8px 16px;
+    font-size: 12px;
+    min-width: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .create-group .create-group-container {
+    padding: 10px;
+  }
+
+  .create-group .create-group-header h2 {
+    font-size: 18px;
+  }
+
+  .create-group .create-group-header .back-button {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .create-group .form-group {
+    margin-bottom: 10px;
+  }
+
+  .create-group .form-group label {
+    font-size: 10px;
+  }
+
+  .create-group .form-group input {
+    font-size: 10px;
+    padding: 5px;
+  }
+
+  .create-group .search-bar input {
+    font-size: 10px;
+    padding: 5px;
+  }
+
+  .create-group .search-bar button {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .create-group .searched-users h4,
+  .create-group .selected-members h4 {
+    font-size: 10px;
+  }
+
+  .create-group .user-item,
+  .create-group .member-item {
+    padding: 6px;
+  }
+
+  .create-group .user-item button,
+  .create-group .member-item button {
+    padding: 3px 6px;
+    font-size: 8px;
+  }
+
+  .create-group .form-actions {
+    gap: 8px;
+    margin-top: 15px;
+  }
+
+  .create-group .form-actions button {
+    padding: 6px 12px;
+    font-size: 10px;
+    min-width: 70px;
+  }
 }

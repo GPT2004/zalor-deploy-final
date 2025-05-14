@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { searchFriend, joinGroup, getGroups, removeMember, updateGroup } from '../services/api';
 import '../css/EditGroup.css';
 
@@ -12,10 +12,20 @@ const EditGroup = ({ group, user, onLeaveGroup, onDeleteGroup, onUpdateGroup }) 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [description, setDescription] = useState(group.description || '');
   const fileInputRef = useRef(null);
+  const searchInputRef = useRef(null); // Ref để xử lý bàn phím ảo
 
-  const toggleMembersDropdown = () => {
-    setIsMembersDropdownOpen(!isMembersDropdownOpen);
-  };
+  // Xử lý bàn phím ảo
+  useEffect(() => {
+    const handleResize = () => {
+      if (searchInputRef.current && document.activeElement === searchInputRef.current) {
+        searchInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleMembersDropdown = () => setIsMembersDropdownOpen(!isMembersDropdownOpen);
 
   const handleSearchUsers = async () => {
     try {
@@ -77,9 +87,7 @@ const EditGroup = ({ group, user, onLeaveGroup, onDeleteGroup, onUpdateGroup }) 
       }
       setAvatarFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
+      reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
       handleAvatarUpload(file);
     }
@@ -90,10 +98,8 @@ const EditGroup = ({ group, user, onLeaveGroup, onDeleteGroup, onUpdateGroup }) 
       setErrorMessage('Vui lòng chọn một file ảnh.');
       return;
     }
-
     const formData = new FormData();
     formData.append('avatar', file);
-
     try {
       const { data } = await updateGroup(group._id, formData);
       onUpdateGroup(data);
@@ -107,13 +113,9 @@ const EditGroup = ({ group, user, onLeaveGroup, onDeleteGroup, onUpdateGroup }) 
     }
   };
 
-  const handleAvatarClick = () => {
-    fileInputRef.current.click();
-  };
+  const handleAvatarClick = () => fileInputRef.current.click();
 
-  const handleDescriptionChange = (e) => {
-    setDescription(e.target.value);
-  };
+  const handleDescriptionChange = (e) => setDescription(e.target.value);
 
   const handleDescriptionSubmit = async (e) => {
     e.preventDefault();
@@ -141,7 +143,6 @@ const EditGroup = ({ group, user, onLeaveGroup, onDeleteGroup, onUpdateGroup }) 
               type="file"
               accept="image/jpeg,image/jpg,image/png"
               onChange={handleAvatarChange}
-              className="avatar-input"
               ref={fileInputRef}
               style={{ display: 'none' }}
             />
@@ -224,6 +225,7 @@ const EditGroup = ({ group, user, onLeaveGroup, onDeleteGroup, onUpdateGroup }) 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm kiếm bạn bè bằng tên"
+                  ref={searchInputRef}
                 />
                 <button onClick={handleSearchUsers}>Tìm</button>
               </div>

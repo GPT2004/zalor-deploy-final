@@ -31,7 +31,7 @@ const Settings = ({ setIsAuthenticated, onClose }) => {
         if (err.response && err.response.status === 401) {
           localStorage.removeItem('token');
           setIsAuthenticated(false);
-          onClose(); // Đóng modal nếu token không hợp lệ
+          onClose();
         } else {
           setError('Không thể tải thông tin người dùng.');
         }
@@ -71,7 +71,7 @@ const Settings = ({ setIsAuthenticated, onClose }) => {
         await deleteAccount();
         localStorage.removeItem('token');
         setIsAuthenticated(false);
-        onClose(); // Đóng modal sau khi xóa tài khoản
+        onClose();
         setSuccess('Tài khoản đã được xóa thành công.');
         setError('');
       } catch (err) {
@@ -107,7 +107,6 @@ const Settings = ({ setIsAuthenticated, onClose }) => {
         {error && <p className="error">{error}</p>}
         {success && <p className="success">{success}</p>}
 
-        {/* Thay đổi mật khẩu */}
         <div className="settings-section">
           <h3>Thay đổi mật khẩu</h3>
           <form onSubmit={handleChangePassword}>
@@ -139,7 +138,6 @@ const Settings = ({ setIsAuthenticated, onClose }) => {
           </form>
         </div>
 
-        {/* Chế độ không làm phiền */}
         <div className="settings-section">
           <h3>Chế độ không làm phiền</h3>
           <div className="form-group">
@@ -156,12 +154,9 @@ const Settings = ({ setIsAuthenticated, onClose }) => {
           <button onClick={handleUpdateDoNotDisturb}>Cập nhật</button>
         </div>
 
-        {/* Xóa tài khoản */}
         <div className="settings-section">
           <h3>Xóa tài khoản</h3>
-          <p>
-            Hành động này sẽ xóa vĩnh viễn tài khoản của bạn và tất cả dữ liệu liên quan.
-          </p>
+          <p>Hành động này sẽ xóa vĩnh viễn tài khoản của bạn và tất cả dữ liệu liên quan.</p>
           <button className="delete-account-btn" onClick={handleDeleteAccount}>
             Xóa tài khoản
           </button>

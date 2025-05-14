@@ -26,6 +26,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: transform 0.3s ease; /* Hiệu ứng trượt cho sidebar */
 }
 
 .home-container .sidebar-header {
@@ -484,6 +485,16 @@ body {
   justify-content: space-between;
   align-items: center;
   position: relative;
+}
+
+/* Nút hamburger (ẩn mặc định) */
+.home-container .hamburger-menu {
+  display: none;
+  font-size: 24px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
 }
 
 .home-container .chat-header-info {
@@ -946,6 +957,7 @@ body {
   height: 30px;
   border-radius: 50%;
 }
+
 .file-message {
   display: flex;
   align-items: center;
@@ -977,4 +989,286 @@ body {
   font-size: 14px;
   font-family: 'Roboto', 'Arial', sans-serif;
   word-break: break-all;
+}
+
+/* Overlay để tắt sidebar trên điện thoại */
+.home-container .overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.home-container .overlay.active {
+  display: block;
+}
+
+/* Responsive cho điện thoại */
+@media (max-width: 768px) {
+  /* Ẩn sidebar mặc định trên điện thoại */
+  .home-container .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 80%;
+    max-width: 300px;
+    height: 100%;
+    transform: translateX(-100%); /* Ẩn sidebar ban đầu */
+    z-index: 1000;
+  }
+
+  /* Hiển thị sidebar khi có class active */
+  .home-container .sidebar.active {
+    transform: translateX(0); /* Hiển thị sidebar */
+  }
+
+  /* Hiển thị nút hamburger trên điện thoại */
+  .home-container .hamburger-menu {
+    display: block;
+  }
+
+  /* Main content chiếm toàn màn hình */
+  .home-container .main-content {
+    width: 100%;
+  }
+
+  /* Điều chỉnh chat header */
+  .home-container .chat-header {
+    padding: 10px;
+  }
+
+  .home-container .chat-header h2 {
+    font-size: 16px;
+  }
+
+  .home-container .chat-header-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .home-container .profile-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* Điều chỉnh chat area và message input */
+  .home-container .chat-area {
+    padding: 10px;
+  }
+
+  .home-container .messages {
+    padding: 10px;
+  }
+
+  .home-container .message-content {
+    max-width: 80%; /* Tăng max-width để phù hợp màn hình nhỏ */
+  }
+
+  .home-container .message-content p {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .home-container .message-avatar {
+    width: 25px;
+    height: 25px;
+  }
+
+  .home-container .message-time {
+    font-size: 9px;
+  }
+
+  .home-container .message-emoji-reaction {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+
+  .home-container .emoji-reaction-picker {
+    bottom: 15px;
+  }
+
+  .home-container .emoji-reaction-picker button {
+    font-size: 12px;
+    padding: 1px;
+  }
+
+  .home-container .message-options button {
+    font-size: 10px;
+  }
+
+  .home-container .chat-message-options-dropdown {
+    bottom: 15px;
+  }
+
+  .home-container .chat-message-options-dropdown button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  /* Message input */
+  .home-container .message-input {
+    padding: 5px;
+    gap: 5px;
+  }
+
+  .home-container .message-input input[type="text"] {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .home-container .icon-button,
+  .home-container .send-button {
+    font-size: 18px;
+  }
+
+  .home-container .emoji-picker {
+    bottom: 50px; /* Điều chỉnh để tránh bàn phím ảo */
+  }
+
+  .home-container .preview-media {
+    max-width: 150px;
+    max-height: 150px;
+  }
+
+  /* Sidebar content */
+  .home-container .sidebar-header {
+    padding: 15px;
+  }
+
+  .home-container .sidebar-header h1 {
+    font-size: 20px;
+  }
+
+  .home-container .search-bar {
+    gap: 5px;
+  }
+
+  .home-container .search-bar input {
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  .home-container .search-bar button {
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  .home-container .tabs button {
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  .home-container .sidebar-content {
+    padding: 15px;
+  }
+
+  .home-container .section-header h3 {
+    font-size: 14px;
+  }
+
+  .home-container .add-button {
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+  }
+
+  /* Friend requests */
+  .home-container .request-item {
+    padding: 8px;
+  }
+
+  .home-container .request-avatar {
+    width: 25px;
+    height: 25px;
+  }
+
+  .home-container .request-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  /* Friend and group lists */
+  .home-container .friend-item,
+  .home-container .group-item {
+    padding: 8px;
+  }
+
+  .home-container .friend-avatar,
+  .home-container .group-avatar {
+    width: 25px;
+    height: 25px;
+  }
+
+  .home-container .friend-name {
+    font-size: 14px;
+  }
+
+  .home-container .last-message {
+    font-size: 11px;
+    max-width: 150px; /* Thu nhỏ để phù hợp màn hình nhỏ */
+  }
+
+  .home-container .status-indicator {
+    width: 10px;
+    height: 10px;
+    border-width: 1px;
+  }
+
+  .home-container .unread-indicator {
+    width: 8px;
+    height: 8px;
+  }
+
+  /* Search results */
+  .home-container .search-results {
+    margin: 10px 15px 15px;
+    max-height: 150px;
+  }
+
+  .home-container .search-results h4 {
+    font-size: 13px;
+  }
+
+  .home-container .search-results .friend-item {
+    padding: 8px;
+  }
+
+  .home-container .search-results .friend-item span {
+    font-size: 13px;
+  }
+
+  .home-container .search-results .info-button {
+    font-size: 14px;
+  }
+
+  /* Notification */
+  .home-container .notification {
+    padding: 8px;
+  }
+
+  .home-container .notification-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .home-container .notification-title {
+    font-size: 13px;
+  }
+
+  .home-container .notification-time {
+    font-size: 11px;
+  }
+
+  .home-container .notification-content {
+    font-size: 11px;
+  }
+
+  .home-container .notification-unread {
+    width: 8px;
+    height: 8px;
+  }
 }
