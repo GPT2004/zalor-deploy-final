@@ -188,7 +188,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       } else {
-        const friendId = message.senderId._id === user?._id ? message.receiverId : message.senderId._id;
+        const senderId = message.senderId?._id || message.senderId;
+        const friendId = senderId === user?._id ? message.receiverId : senderId;
+
         setFriendMessages((prev) => ({
           ...prev,
           [friendId]: Array.isArray(prev[friendId])
@@ -936,7 +938,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                       <div
                         key={msg._id}
                         className={`message ${
-                          msg.senderId?._id === user?._id ? 'sent' : 'received'
+                          (msg.senderId?._id || msg.senderId) === user?._id
+ ? 'sent' : 'received'
                         }`}
                       >
                         {msg.senderId?._id !== user?._id && (
@@ -1014,7 +1017,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                                     </div>
                                   )}
                                 </div>
-                                {msg.senderId?._id === user?._id && (
+                                {(msg.senderId?._id || msg.senderId) === user?._id
+ && (
                                   <div className="message-options">
                                     <button onClick={() => handleMessageOptions(msg._id)}>...</button>
                                     {showMessageOptions === msg._id && (
