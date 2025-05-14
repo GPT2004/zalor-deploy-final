@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
 import {
@@ -49,7 +50,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   const [groupMessages, setGroupMessages] = useState({});
   const messagesEndRef = useRef(null);
 
-  // Tải dữ liệu ban đầu
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -107,118 +107,43 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     fetchData();
   }, [navigate, setIsAuthenticated]);
 
-  // Tham gia tất cả các room khi user online
   useEffect(() => {
-    if (user && user._id) {
-      socket.emit('userConnected', user._id);
-
-      friends.forEach((friend) => {
-        const roomId = [user._id, friend._id].sort().join('-');
-        socket.emit('joinRoom', roomId);
-        console.log(`Joined friend room: ${roomId}`);
-      });
-      groups.forEach((group) => {
-        socket.emit('joinRoom', group._id);
-        console.log(`Joined group room: ${group._id}`);
-      });
+    if (userId) {
+      socket.emit('userConnected', userId);
     }
-  }, [user, friends, groups, socket]);
+  }, [userId, socket]);
 
-  // Tự động scroll đến tin nhắn mới
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
+    const handleMessageRead = ({ receiverId, senderId }) => {
+      if (!selectedChat || !user || !user._id) return;
 
-  // Đánh dấu tin nhắn đã đọc khi messages hoặc selectedChat thay đổi
-  useEffect(() => {
-    const markAsRead = async () => {
-      if (
-        selectedChat &&
-        user &&
-        user._id &&
-        Array.isArray(messages) &&
-        messages.some((msg) => !msg.isRead && msg.senderId?._id !== user._id)
-      ) {
-        try {
-          await markMessagesAsRead(selectedChat._id, selectedChat.isGroup);
-          setMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
-          if (selectedChat.isGroup) {
-            setGroupMessages((prev) => ({
-              ...prev,
-              [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-                ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
-                : [],
-            }));
-          } else {
-            setFriendMessages((prev) => ({
-              ...prev,
-              [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-                ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
-                : [],
-            }));
-          }
-        } catch (err) {
-          console.error('Error marking as read:', err);
-        }
+      if (!selectedChat.isGroup && selectedChat._id === receiverId && user._id === senderId) {
+        setFriendMessages((prev) => ({
+          ...prev,
+          [receiverId]: Array.isArray(prev[receiverId])
+            ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
+            : [],
+        }));
+        setMessages((prev) =>
+          Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
+        );
+      } else if (selectedChat.isGroup && selectedChat._id === receiverId) {
+        setGroupMessages((prev) => ({
+          ...prev,
+          [receiverId]: Array.isArray(prev[receiverId])
+            ? prev[receiverId].map((msg) => ({ ...msg, isRead: true }))
+            : [],
+        }));
+        setMessages((prev) =>
+          Array.isArray(prev) ? prev.map((msg) => ({ ...msg, isRead: true })) : []
+        );
       }
     };
 
-    markAsRead();
-  }, [messages, selectedChat, user, setMessages, setGroupMessages, setFriendMessages]);
+    socket.on('messageRead', handleMessageRead);
+    return () => socket.off('messageRead', handleMessageRead);
+  }, [selectedChat, user, socket]);
 
-  // Xử lý tin nhắn nhận được qua socket
-  const handleReceiveMessage = useCallback(
-    (message) => {
-      console.log('Received message:', message);
-      if (!message || !message.receiverId) return;
-
-      if (message.isGroup) {
-        setGroupMessages((prev) => ({
-          ...prev,
-          [message.receiverId]: Array.isArray(prev[message.receiverId])
-            ? [...prev[message.receiverId], { ...message, isRead: user?._id !== message.senderId?._id }]
-            : [{ ...message, isRead: user?._id !== message.senderId?._id }],
-        }));
-      } else {
-        const senderId = message.senderId?._id || message.senderId;
-        const friendId = senderId === user?._id ? message.receiverId : senderId;
-
-        setFriendMessages((prev) => ({
-          ...prev,
-          [friendId]: Array.isArray(prev[friendId])
-            ? [...prev[friendId], { ...message, isRead: user?._id !== message.senderId?._id }]
-            : [{ ...message, isRead: user?._id !== message.senderId?._id }],
-        }));
-
-        if (!selectedChat || selectedChat._id !== friendId) {
-          const friend = friends.find((f) => f._id === friendId);
-          if (friend) {
-            console.log('Auto-selecting chat with:', friend);
-            handleSelectChat(friend, false);
-          }
-        }
-      }
-
-      if (selectedChat && selectedChat._id === message.receiverId) {
-        console.log('Updating messages for current chat:', message);
-        setMessages((prev) => {
-          if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
-          return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
-        });
-      }
-    },
-    // eslint-disable-next-line no-use-before-define
-    [user, selectedChat, friends, handleSelectChat, setGroupMessages, setFriendMessages, setMessages]
-  );
-
-  useEffect(() => {
-    socket.on('sendMessage', handleReceiveMessage);
-    return () => socket.off('sendMessage', handleReceiveMessage);
-  }, [socket, handleReceiveMessage]);
-
-  // Xử lý trạng thái người dùng (online/offline)
   useEffect(() => {
     const handleUserStatus = ({ userId, isOnline }) => {
       setFriends((prev) =>
@@ -242,126 +167,108 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('userStatus', handleUserStatus);
   }, [selectedChat, socket]);
 
-  // Hàm chọn chat với useCallback
-  const handleSelectChat = useCallback(
-    async (chat, isGroup = false) => {
-      if (!chat || !chat._id) return;
+  useEffect(() => {
+    const handleReceiveMessage = (message) => {
+      if (!message || !message.receiverId) return;
 
-      setSelectedChat({ ...chat, isGroup });
-      setSelectedProfile(null);
-      setSelectedGroup(null);
-      setCurrentView('chat');
+      if (messages.some((msg) => msg._id === message._id)) return;
 
-      const roomId = isGroup ? chat._id : [user?._id, chat._id].sort().join('-');
-      socket.emit('joinRoom', roomId);
-      console.log(`Joined room: ${roomId} for chat ${chat._id}`);
-
-      // Đồng bộ messages với friendMessages hoặc groupMessages
-      let existingMessages = isGroup
-        ? (groupMessages[chat._id] || [])
-        : (friendMessages[chat._id] || []);
-
-      if (Array.isArray(existingMessages)) {
-        setMessages([...existingMessages]);
+      if (message.isGroup) {
+        setGroupMessages((prev) => ({
+          ...prev,
+          [message.receiverId]: Array.isArray(prev[message.receiverId])
+            ? [...prev[message.receiverId], { ...message, isRead: user?._id !== message.senderId?._id }]
+            : [{ ...message, isRead: user?._id !== message.senderId?._id }],
+        }));
       } else {
+        const senderId = message.senderId?._id || message.senderId;
+        const friendId = senderId === user?._id ? message.receiverId : senderId;
+
+        setFriendMessages((prev) => ({
+          ...prev,
+          [friendId]: Array.isArray(prev[friendId])
+            ? [...prev[friendId], { ...message, isRead: user?._id !== message.senderId?._id }]
+            : [{ ...message, isRead: user?._id !== message.senderId?._id }],
+        }));
+      }
+
+      if (selectedChat && selectedChat._id === message.receiverId) {
+        setMessages((prev) => {
+          if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
+          return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
+        });
+      }
+    };
+
+    socket.on('receiveMessage', handleReceiveMessage);
+    return () => socket.off('receiveMessage', handleReceiveMessage);
+  }, [user, selectedChat, socket, messages]);
+
+  useEffect(() => {
+    if (selectedChat && user && user._id && selectedChat._id) {
+      const roomId = selectedChat.isGroup
+        ? selectedChat._id
+        : [user._id, selectedChat._id].sort().join('-');
+      socket.emit('joinRoom', roomId);
+
+      const fetchMessages = async () => {
         try {
-          const { data } = await getMessages(chat._id, isGroup);
-          existingMessages = Array.isArray(data) ? [...data] : [];
-          setMessages(existingMessages);
-          if (isGroup) {
+          const { data } = await getMessages(selectedChat._id, selectedChat.isGroup);
+          const messagesArray = Array.isArray(data) ? data : [];
+          setMessages(messagesArray);
+          if (selectedChat.isGroup) {
             setGroupMessages((prev) => ({
               ...prev,
-              [chat._id]: existingMessages,
+              [selectedChat._id]: messagesArray,
             }));
           } else {
             setFriendMessages((prev) => ({
               ...prev,
-              [chat._id]: existingMessages,
+              [selectedChat._id]: messagesArray,
             }));
           }
         } catch (err) {
           console.error('Error fetching messages:', err);
           setMessages([]);
         }
-      }
-    },
-    [user, socket, friendMessages, groupMessages, setSelectedChat, setSelectedProfile, setSelectedGroup, setCurrentView, setMessages, setGroupMessages, setFriendMessages]
-  );
+      };
 
-  // Gửi tin nhắn
-  const sendMessage = async () => {
-    if (!message.trim() && !file) return;
-
-    if (!selectedChat || !selectedChat._id || !user || !user._id) {
-      console.error('Cannot send message: selectedChat or user is null', { selectedChat, user });
-      return;
+      fetchMessages();
     }
+  }, [selectedChat, user, socket]);
 
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const tempMessage = {
-      _id: tempId,
-      senderId: user,
-      content: message,
-      type: file
-        ? file.type.startsWith('image')
-          ? 'image'
-          : file.type.startsWith('video')
-          ? 'video'
-          : 'file'
-        : 'text',
-      createdAt: new Date().toISOString(),
-      isRecalled: false,
-      isRead: true,
-    };
-
-    setMessages((prev) => [...prev, tempMessage]);
-
-    try {
-      const newMessage = await apiSendMessage(selectedChat._id, selectedChat.isGroup, message, file);
-      setMessages((prev) =>
-        prev
-          .filter((msg) => msg._id !== tempId)
-          .concat(newMessage)
-      );
-
-      if (selectedChat.isGroup) {
-        setGroupMessages((prev) => ({
-          ...prev,
-          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-            ? [...prev[selectedChat._id], newMessage]
-            : [newMessage],
-        }));
-      } else {
-        setFriendMessages((prev) => ({
-          ...prev,
-          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-            ? [...prev[selectedChat._id], newMessage]
-            : [newMessage],
-        }));
+  const markAsRead = async () => {
+    if (
+      selectedChat &&
+      user &&
+      user._id &&
+      Array.isArray(messages) &&
+      messages.some((msg) => !msg.isRead && msg.senderId?._id !== user._id)
+    ) {
+      try {
+        await markMessagesAsRead(selectedChat._id, selectedChat.isGroup);
+        setMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
+        if (selectedChat.isGroup) {
+          setGroupMessages((prev) => ({
+            ...prev,
+            [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+              ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
+              : [],
+          }));
+        } else {
+          setFriendMessages((prev) => ({
+            ...prev,
+            [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+              ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
+              : [],
+          }));
+        }
+      } catch (err) {
+        console.error('Error marking as read:', err);
       }
-
-      const roomId = selectedChat.isGroup
-        ? selectedChat._id
-        : [user._id, selectedChat._id].sort().join('-');
-      console.log('Emitting sendMessage:', { newMessage, roomId, receiverId: selectedChat._id });
-      socket.emit('sendMessage', {
-        ...newMessage,
-        receiverId: selectedChat._id,
-        isGroup: selectedChat.isGroup,
-        roomId,
-      });
-
-      setMessage('');
-      setFile(null);
-      setPreview(null);
-      setShowEmojiPicker(false);
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
     }
   };
 
-  // Các hàm khác giữ nguyên
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
@@ -471,6 +378,17 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     setCurrentView('chat');
   };
 
+  const handleSelectChat = async (chat, isGroup = false) => {
+    if (!chat || !chat._id) return;
+    setSelectedChat({ ...chat, isGroup });
+    setSelectedProfile(null);
+    setSelectedGroup(null);
+    setCurrentView('chat');
+    if (Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)) {
+      await markAsRead();
+    }
+  };
+
   const handleShowProfile = (userId) => {
     const friend = friends.find((f) => f._id === userId);
     if (friend) {
@@ -481,6 +399,67 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     } else {
       console.error('Friend not found in friends list:', userId);
       alert('Không tìm thấy thông tin người dùng này trong danh sách bạn bè.');
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!message.trim() && !file) return;
+
+    if (!selectedChat || !selectedChat._id || !user || !user._id) {
+      console.error('Cannot send message: selectedChat or user is null', { selectedChat, user });
+      return;
+    }
+
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const tempMessage = {
+      _id: tempId,
+      senderId: user,
+      content: message,
+      type: file
+        ? file.type.startsWith('image')
+          ? 'image'
+          : file.type.startsWith('video')
+          ? 'video'
+          : 'file'
+        : 'text',
+      createdAt: new Date().toISOString(),
+      isRecalled: false,
+      isRead: true,
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
+
+    try {
+      const newMessage = await apiSendMessage(selectedChat._id, selectedChat.isGroup, message, file);
+      setMessages((prev) =>
+        prev
+          .filter((msg) => msg._id !== tempId)
+          .concat(newMessage)
+      );
+
+      if (selectedChat.isGroup) {
+        setGroupMessages((prev) => ({
+          ...prev,
+          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+            ? [...prev[selectedChat._id], newMessage]
+            : [newMessage],
+        }));
+      } else {
+        setFriendMessages((prev) => ({
+          ...prev,
+          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+            ? [...prev[selectedChat._id], newMessage]
+            : [newMessage],
+        }));
+      }
+
+      setMessage('');
+      setFile(null);
+      setPreview(null);
+      setShowEmojiPicker(false);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
     }
   };
 
@@ -866,7 +845,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
               />
             ) : selectedChat ? (
               <div className="chat-box">
-                <div className="messages">
+                <div className="messages" ref={messagesEndRef}>
                   {Array.isArray(messages) &&
                     messages.map((msg) => (
                       <div
@@ -952,7 +931,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                         </div>
                       </div>
                     ))}
-                  <div ref={messagesEndRef} />
                 </div>
                 <div className="message-input">
                   <button className="icon-button" onClick={toggleEmojiPicker}>
