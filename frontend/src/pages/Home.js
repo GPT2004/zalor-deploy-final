@@ -112,7 +112,6 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     if (user && user._id) {
       socket.emit('userConnected', user._id);
 
-      // Tham gia tất cả các room của bạn bè và nhóm
       friends.forEach((friend) => {
         const roomId = [user._id, friend._id].sort().join('-');
         socket.emit('joinRoom', roomId);
@@ -132,15 +131,49 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     }
   }, [messages]);
 
-  // Xử lý khi chọn một cuộc trò chuyện
-  // Removed duplicate declaration of handleSelectChat
+  // Đánh dấu tin nhắn đã đọc khi messages hoặc selectedChat thay đổi
+  useEffect(() => {
+    const markAsRead = async () => {
+      if (
+        selectedChat &&
+        user &&
+        user._id &&
+        Array.isArray(messages) &&
+        messages.some((msg) => !msg.isRead && msg.senderId?._id !== user._id)
+      ) {
+        try {
+          await markMessagesAsRead(selectedChat._id, selectedChat.isGroup);
+          setMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
+          if (selectedChat.isGroup) {
+            setGroupMessages((prev) => ({
+              ...prev,
+              [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+                ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
+                : [],
+            }));
+          } else {
+            setFriendMessages((prev) => ({
+              ...prev,
+              [selectedChat._id]: Array.isArray(prev[selectedChat._id])
+                ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
+                : [],
+            }));
+          }
+        } catch (err) {
+          console.error('Error marking as read:', err);
+        }
+      }
+    };
+
+    markAsRead();
+  }, [messages, selectedChat, user, setMessages, setGroupMessages, setFriendMessages]);
 
   // Xử lý tin nhắn nhận được qua socket
-  useEffect(() => {
-    const handleReceiveMessage = (message) => {
+  const handleReceiveMessage = useCallback(
+    (message) => {
       console.log('Received message:', message);
       if (!message || !message.receiverId) return;
-  
+
       if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -151,14 +184,14 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       } else {
         const senderId = message.senderId?._id || message.senderId;
         const friendId = senderId === user?._id ? message.receiverId : senderId;
-  
+
         setFriendMessages((prev) => ({
           ...prev,
           [friendId]: Array.isArray(prev[friendId])
             ? [...prev[friendId], { ...message, isRead: user?._id !== message.senderId?._id }]
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
-  
+
         if (!selectedChat || selectedChat._id !== friendId) {
           const friend = friends.find((f) => f._id === friendId);
           if (friend) {
@@ -167,7 +200,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           }
         }
       }
-  
+
       if (selectedChat && selectedChat._id === message.receiverId) {
         console.log('Updating messages for current chat:', message);
         setMessages((prev) => {
@@ -175,11 +208,15 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
         });
       }
-    };
-  
+    },
+    // eslint-disable-next-line no-use-before-define
+    [user, selectedChat, friends, handleSelectChat, setGroupMessages, setFriendMessages, setMessages]
+  );
+
+  useEffect(() => {
     socket.on('sendMessage', handleReceiveMessage);
     return () => socket.off('sendMessage', handleReceiveMessage);
-  }, [user, selectedChat, socket, friends, handleSelectChat]);
+  }, [socket, handleReceiveMessage]);
 
   // Xử lý trạng thái người dùng (online/offline)
   useEffect(() => {
@@ -205,60 +242,27 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('userStatus', handleUserStatus);
   }, [selectedChat, socket]);
 
-  // Đánh dấu tin nhắn đã đọc
-  const markAsRead = useCallback(async () => {
-    if (
-      selectedChat &&
-      user &&
-      user._id &&
-      Array.isArray(messages) &&
-      messages.some((msg) => !msg.isRead && msg.senderId?._id !== user._id)
-    ) {
-      try {
-        await markMessagesAsRead(selectedChat._id, selectedChat.isGroup);
-        setMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
-        if (selectedChat.isGroup) {
-          setGroupMessages((prev) => ({
-            ...prev,
-            [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-              ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
-              : [],
-          }));
-        } else {
-          setFriendMessages((prev) => ({
-            ...prev,
-            [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-              ? prev[selectedChat._id].map((msg) => ({ ...msg, isRead: true }))
-              : [],
-          }));
-        }
-      } catch (err) {
-        console.error('Error marking as read:', err);
-      }
-    }
-  }, [selectedChat, user, messages, setMessages, setGroupMessages, setFriendMessages]);
-
-  // Xử lý khi chọn một cuộc trò chuyện
+  // Hàm chọn chat với useCallback
   const handleSelectChat = useCallback(
     async (chat, isGroup = false) => {
       if (!chat || !chat._id) return;
-  
+
       setSelectedChat({ ...chat, isGroup });
       setSelectedProfile(null);
       setSelectedGroup(null);
       setCurrentView('chat');
-  
+
       const roomId = isGroup ? chat._id : [user?._id, chat._id].sort().join('-');
       socket.emit('joinRoom', roomId);
       console.log(`Joined room: ${roomId} for chat ${chat._id}`);
-  
+
       // Đồng bộ messages với friendMessages hoặc groupMessages
       let existingMessages = isGroup
         ? (groupMessages[chat._id] || [])
         : (friendMessages[chat._id] || []);
-  
+
       if (Array.isArray(existingMessages)) {
-        setMessages([...existingMessages]); // Sao chép mảng để tránh tham chiếu trực tiếp
+        setMessages([...existingMessages]);
       } else {
         try {
           const { data } = await getMessages(chat._id, isGroup);
@@ -280,13 +284,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           setMessages([]);
         }
       }
-  
-      // Đánh dấu tin nhắn đã đọc nếu có
-      if (Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)) {
-        await markAsRead();
-      }
     },
-    [user, socket, friendMessages, groupMessages, messages, markAsRead, setSelectedChat, setSelectedProfile, setSelectedGroup, setCurrentView, setMessages]
+    [user, socket, friendMessages, groupMessages, setSelectedChat, setSelectedProfile, setSelectedGroup, setCurrentView, setMessages, setGroupMessages, setFriendMessages]
   );
 
   // Gửi tin nhắn
