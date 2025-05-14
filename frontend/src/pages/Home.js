@@ -11,9 +11,9 @@ import {
   deleteGroup,
   getMessages,
   markMessagesAsRead,
-  sendMessage,
-  recallMessage,
-  editMessage,
+  sendMessage as apiSendMessage,
+  recallMessage as apiRecallMessage,
+  editMessage as apiEditMessage,
 } from '../services/api';
 import EditGroup from './EditGroup';
 import Profile from './Profile';
@@ -67,8 +67,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         const friendMessagesData = {};
         for (const friend of friendsData) {
           try {
-            const messages = await getMessages(friend._id, false);
-            friendMessagesData[friend._id] = Array.isArray(messages.data) ? messages.data : [];
+            const { data: messages } = await getMessages(friend._id, false);
+            friendMessagesData[friend._id] = Array.isArray(messages) ? messages : [];
           } catch (err) {
             console.error(`Error fetching messages for friend ${friend._id}:`, err);
             friendMessagesData[friend._id] = [];
@@ -79,8 +79,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         const groupMessagesData = {};
         for (const group of groupsData) {
           try {
-            const messages = await getMessages(group._id, true);
-            groupMessagesData[group._id] = Array.isArray(messages.data) ? messages.data : [];
+            const { data: messages } = await getMessages(group._id, true);
+            groupMessagesData[group._id] = Array.isArray(messages) ? messages : [];
           } catch (err) {
             console.error(`Error fetching messages for group ${group._id}:`, err);
             groupMessagesData[group._id] = [];
@@ -140,9 +140,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     };
 
     socket.on('messageRead', handleMessageRead);
-    return () => {
-      socket.off('messageRead', handleMessageRead);
-    };
+    return () => socket.off('messageRead', handleMessageRead);
   }, [selectedChat, user, socket]);
 
   useEffect(() => {
@@ -165,26 +163,20 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     };
 
     socket.on('userStatus', handleUserStatus);
-    return () => {
-      socket.off('userStatus', handleUserStatus);
-    };
+    return () => socket.off('userStatus', handleUserStatus);
   }, [selectedChat, socket]);
 
   useEffect(() => {
     const handleReceiveMessage = (message) => {
       if (!message || !message.receiverId) return;
 
-      const isDuplicate = messages.some((msg) => msg._id === message._id);
-      if (isDuplicate) return;
+      if (messages.some((msg) => msg._id === message._id)) return;
 
       if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
           [message.receiverId]: Array.isArray(prev[message.receiverId])
-            ? [
-                ...prev[message.receiverId],
-                { ...message, isRead: user?._id !== message.senderId?._id },
-              ]
+            ? [...prev[message.receiverId], { ...message, isRead: user?._id !== message.senderId?._id }]
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       } else {
@@ -194,31 +186,21 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         setFriendMessages((prev) => ({
           ...prev,
           [friendId]: Array.isArray(prev[friendId])
-            ? [
-                ...prev[friendId],
-                { ...message, isRead: user?._id !== message.senderId?._id },
-              ]
+            ? [...prev[friendId], { ...message, isRead: user?._id !== message.senderId?._id }]
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       }
 
       if (selectedChat && selectedChat._id === message.receiverId) {
         setMessages((prev) => {
-          const exists = Array.isArray(prev) && prev.some((msg) => msg._id === message._id);
-          if (!exists) {
-            return Array.isArray(prev)
-              ? [...prev, { ...message, isRead: user?._id !== message.senderId?._id }]
-              : [{ ...message, isRead: user?._id !== message.senderId?._id }];
-          }
-          return prev;
+          if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
+          return [...prev, { ...message, isRead: user?._id !== message.senderId?._id }];
         });
       }
     };
 
     socket.on('receiveMessage', handleReceiveMessage);
-    return () => {
-      socket.off('receiveMessage', handleReceiveMessage);
-    };
+    return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [user, selectedChat, socket, messages]);
 
   useEffect(() => {
@@ -230,8 +212,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
       const fetchMessages = async () => {
         try {
-          const data = await getMessages(selectedChat._id, selectedChat.isGroup);
-          const messagesArray = Array.isArray(data.data) ? data.data : [];
+          const { data } = await getMessages(selectedChat._id, selectedChat.isGroup);
+          const messagesArray = Array.isArray(data) ? data : [];
           setMessages(messagesArray);
           if (selectedChat.isGroup) {
             setGroupMessages((prev) => ({
@@ -300,13 +282,8 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     setSelectedGroup(null);
   };
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
-  const toggleProfileDropdown = () => {
-    setIsProfileDropdownOpen(!isProfileDropdownOpen);
-  };
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
+  const toggleProfileDropdown = () => setIsProfileDropdownOpen(!isProfileDropdownOpen);
 
   const handleProfileInfo = () => {
     setSelectedProfile(user || null);
@@ -364,8 +341,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     const filteredGroups = groups
       .filter((group) => group.name.toLowerCase().includes(lowerQuery))
       .map((group) => ({ ...group, type: 'group' }));
-    const combinedResults = [...filteredFriends, ...filteredGroups];
-    setSearchedGroups(combinedResults);
+    setSearchedGroups([...filteredFriends, ...filteredGroups]);
   };
 
   const handleLeaveGroup = async (groupId) => {
@@ -402,11 +378,12 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   };
 
   const handleSelectChat = async (chat, isGroup = false) => {
-    setSelectedChat(chat ? { ...chat, isGroup } : null);
+    if (!chat || !chat._id) return;
+    setSelectedChat({ ...chat, isGroup });
     setSelectedProfile(null);
     setSelectedGroup(null);
     setCurrentView('chat');
-    if (chat && Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)) {
+    if (Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)) {
       await markAsRead();
     }
   };
@@ -428,10 +405,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     if (!message.trim() && !file) return;
 
     if (!selectedChat || !selectedChat._id || !user || !user._id) {
-      console.error('Cannot send message: selectedChat or user is null', {
-        selectedChat,
-        user,
-      });
+      console.error('Cannot send message: selectedChat or user is null', { selectedChat, user });
       return;
     }
 
@@ -455,11 +429,12 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     setMessages((prev) => [...prev, tempMessage]);
 
     try {
-      const newMessage = await sendMessage(selectedChat._id, selectedChat.isGroup, message, file);
-      setMessages((prev) => {
-        const filtered = prev.filter((msg) => msg._id !== tempId);
-        return filtered.some((msg) => msg._id === newMessage._id) ? filtered : [...filtered, newMessage];
-      });
+      const newMessage = await apiSendMessage(selectedChat._id, selectedChat.isGroup, message, file);
+      setMessages((prev) =>
+        prev
+          .filter((msg) => msg._id !== tempId)
+          .concat(newMessage)
+      );
 
       if (selectedChat.isGroup) {
         setGroupMessages((prev) => ({
@@ -489,7 +464,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
   const recallMessage = async (messageId) => {
     try {
-      await recallMessage(messageId);
+      await apiRecallMessage(messageId);
       setMessages((prev) =>
         prev.map((msg) => (msg._id === messageId ? { ...msg, isRecalled: true } : msg))
       );
@@ -501,7 +476,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
 
   const editMessage = async (messageId, newContent) => {
     try {
-      await editMessage(messageId, newContent);
+      await apiEditMessage(messageId, newContent);
       setMessages((prev) =>
         prev.map((msg) => (msg._id === messageId ? { ...msg, content: newContent } : msg))
       );
@@ -526,9 +501,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     if (preview) URL.revokeObjectURL(preview);
   };
 
-  const toggleEmojiPicker = () => {
-    setShowEmojiPicker(!showEmojiPicker);
-  };
+  const toggleEmojiPicker = () => setShowEmojiPicker(!showEmojiPicker);
 
   const handleEmojiSelect = (emojiObject) => {
     setMessage((prev) => prev + emojiObject.emoji);
@@ -587,15 +560,10 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
               {searchedGroups.map((item) => (
                 <div
                   key={item._id}
-                  className={`friend-item ${
-                    selectedChat && selectedChat._id === item._id ? 'active' : ''
-                  }`}
+                  className={`friend-item ${selectedChat && selectedChat._id === item._id ? 'active' : ''}`}
                 >
                   {item.type === 'friend' ? (
-                    <div
-                      className="friend-info"
-                      onClick={() => handleSelectChat(item, false)}
-                    >
+                    <div className="friend-info" onClick={() => handleSelectChat(item, false)}>
                       <div className="friend-avatar-container">
                         <img
                           src={item.avatar || 'https://via.placeholder.com/30'}
@@ -603,9 +571,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                           className="friend-avatar"
                         />
                         <span
-                          className={`status-indicator ${
-                            item.isOnline ? 'status-online' : 'status-offline'
-                          }`}
+                          className={`status-indicator ${item.isOnline ? 'status-online' : 'status-offline'}`}
                         ></span>
                       </div>
                       <div className="friend-name-container">
@@ -616,16 +582,11 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                           </span>
                         )}
                       </div>
-                      {hasUnreadMessages(friendMessages[item._id]) && (
-                        <span className="unread-indicator"></span>
-                      )}
+                      {hasUnreadMessages(friendMessages[item._id]) && <span className="unread-indicator"></span>}
                     </div>
                   ) : (
                     <div className="group-info">
-                      <div
-                        className="group-info-content"
-                        onClick={() => handleSelectChat(item, true)}
-                      >
+                      <div className="group-info-content" onClick={() => handleSelectChat(item, true)}>
                         <div className="friend-avatar-container">
                           <img
                             src={item.avatar || 'https://via.placeholder.com/30'}
@@ -641,16 +602,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                             </span>
                           )}
                         </div>
-                        {hasUnreadMessages(groupMessages[item._id]) && (
-                          <span className="unread-indicator"></span>
-                        )}
+                        {hasUnreadMessages(groupMessages[item._id]) && <span className="unread-indicator"></span>}
                       </div>
-                      <button
-                        className="info-button"
-                        onClick={() => handleShowGroupInfo(item)}
-                      >
-                        ...
-                      </button>
+                      <button className="info-button" onClick={() => handleShowGroupInfo(item)}>...</button>
                     </div>
                   )}
                 </div>
@@ -680,20 +634,14 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                               className="request-avatar"
                             />
                             <span
-                              className={`status-indicator ${
-                                request.from?.isOnline ? 'status-online' : 'status-offline'
-                              }`}
+                              className={`status-indicator ${request.from?.isOnline ? 'status-online' : 'status-offline'}`}
                             ></span>
                           </div>
                           <span>{request.from?.name || 'Không xác định'}</span>
                         </div>
                         <div className="request-actions">
-                          <button onClick={() => handleAcceptRequest(request._id)}>
-                            Đồng ý
-                          </button>
-                          <button onClick={() => handleDeclineRequest(request._id)}>
-                            Từ chối
-                          </button>
+                          <button onClick={() => handleAcceptRequest(request._id)}>Đồng ý</button>
+                          <button onClick={() => handleDeclineRequest(request._id)}>Từ chối</button>
                         </div>
                       </div>
                     ))
@@ -705,18 +653,14 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             </div>
             <div className="section-header">
               <h3>BẠN BÈ</h3>
-              <button className="add-button" onClick={handleAddFriend}>
-                +
-              </button>
+              <button className="add-button" onClick={handleAddFriend}>+</button>
             </div>
             <div className="friends-list">
               {friends.length > 0 ? (
                 friends.map((friend) => (
                   <div
                     key={friend._id}
-                    className={`friend-item ${
-                      selectedChat && selectedChat._id === friend._id ? 'active' : ''
-                    }`}
+                    className={`friend-item ${selectedChat && selectedChat._id === friend._id ? 'active' : ''}`}
                     onClick={() => handleSelectChat(friend, false)}
                   >
                     <div className="friend-info">
@@ -727,9 +671,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                           className="friend-avatar"
                         />
                         <span
-                          className={`status-indicator ${
-                            friend.isOnline ? 'status-online' : 'status-offline'
-                          }`}
+                          className={`status-indicator ${friend.isOnline ? 'status-online' : 'status-offline'}`}
                         ></span>
                       </div>
                       <div className="friend-name-container">
@@ -740,9 +682,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                           </span>
                         )}
                       </div>
-                      {hasUnreadMessages(friendMessages[friend._id]) && (
-                        <span className="unread-indicator"></span>
-                      )}
+                      {hasUnreadMessages(friendMessages[friend._id]) && <span className="unread-indicator"></span>}
                     </div>
                   </div>
                 ))
@@ -754,31 +694,20 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           <div className="groups">
             <div className="section-header">
               <h3>NHÓM</h3>
-              <button className="add-button" onClick={handleCreateGroupPage}>
-                +
-              </button>
+              <button className="add-button" onClick={handleCreateGroupPage}>+</button>
             </div>
             <div className="groups-list">
               {groups.length > 0 ? (
                 groups.map((group) => (
                   <div
                     key={group._id}
-                    className={`friend-item ${
-                      selectedChat && selectedChat._id === group._id ? 'active' : ''
-                    }`}
+                    className={`friend-item ${selectedChat && selectedChat._id === group._id ? 'active' : ''}`}
                   >
                     <div className="group-info">
-                      <div
-                        className="group-info-content"
-                        onClick={() => handleSelectChat(group, true)}
-                      >
+                      <div className="group-info-content" onClick={() => handleSelectChat(group, true)}>
                         <div className="friend-avatar-container">
                           <img
-                            src={
-                              group.avatar
-                                ? group.avatar
-                                : 'https://via.placeholder.com/30'
-                            }
+                            src={group.avatar || 'https://via.placeholder.com/30'}
                             alt="Group Avatar"
                             className="friend-avatar"
                           />
@@ -791,16 +720,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                             </span>
                           )}
                         </div>
-                        {hasUnreadMessages(groupMessages[group._id]) && (
-                          <span className="unread-indicator"></span>
-                        )}
+                        {hasUnreadMessages(groupMessages[group._id]) && <span className="unread-indicator"></span>}
                       </div>
-                      <button
-                        className="info-button"
-                        onClick={() => handleShowGroupInfo(group)}
-                      >
-                        ...
-                      </button>
+                      <button className="info-button" onClick={() => handleShowGroupInfo(group)}>...</button>
                     </div>
                   </div>
                 ))
@@ -824,9 +746,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                     className="chat-header-avatar"
                   />
                   <span
-                    className={`status-indicator ${
-                      selectedChat.isOnline ? 'status-online' : 'status-offline'
-                    }`}
+                    className={`status-indicator ${selectedChat.isOnline ? 'status-online' : 'status-offline'}`}
                   ></span>
                 </div>
                 <h2
@@ -846,9 +766,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                     className="chat-header-avatar"
                   />
                   <span
-                    className={`status-indicator ${
-                      selectedProfile.isOnline ? 'status-online' : 'status-offline'
-                    }`}
+                    className={`status-indicator ${selectedProfile.isOnline ? 'status-online' : 'status-offline'}`}
                   ></span>
                 </div>
                 <h2>{selectedProfile.name}</h2>
@@ -879,15 +797,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             {isProfileDropdownOpen && (
               <div className="profile-dropdown-content">
                 <div className="profile-options">
-                  <span className="icon profile-icon" onClick={handleProfileInfo}>
-                    👤
-                  </span>
-                  <span className="icon settings-icon" onClick={handleSettings}>
-                    ⚙️
-                  </span>
-                  <span className="icon logout-icon" onClick={handleLogout}>
-                    🚪
-                  </span>
+                  <span className="icon profile-icon" onClick={handleProfileInfo}>👤</span>
+                  <span className="icon settings-icon" onClick={handleSettings}>⚙️</span>
+                  <span className="icon logout-icon" onClick={handleLogout}>🚪</span>
                 </div>
               </div>
             )}
@@ -937,21 +849,18 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                     messages.map((msg) => (
                       <div
                         key={msg._id}
-                        className={`message ${
-                          (msg.senderId?._id || msg.senderId) === user?._id
- ? 'sent' : 'received'
-                        }`}
+                        className={`message ${(msg.senderId?._id || msg.senderId) === user?._id ? 'sent' : 'received'}`}
                       >
-                        {msg.senderId?._id !== user?._id && (
+                        {(msg.senderId?._id || msg.senderId) !== user?._id && (
                           <img
-                            src={msg.senderId.avatar || 'https://via.placeholder.com/30'}
+                            src={msg.senderId?.avatar || 'https://via.placeholder.com/30'}
                             alt="Avatar"
                             className="message-avatar"
                           />
                         )}
                         <div className="message-content">
-                          {msg.senderId?._id !== user?._id && (
-                            <span className="message-sender">{msg.senderId.name}</span>
+                          {(msg.senderId?._id || msg.senderId) !== user?._id && (
+                            <span className="message-sender">{msg.senderId?.name}</span>
                           )}
                           {msg.isRecalled ? (
                             <p className="recalled-message">Tin nhắn đã bị thu hồi</p>
@@ -973,9 +882,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                                     className="file-link"
                                   >
                                     <span className="file-icon">📄</span>
-                                    <span className="file-text">
-                                      {msg.fileName || 'Tải file'}
-                                    </span>
+                                    <span className="file-text">{msg.fileName || 'Tải file'}</span>
                                   </a>
                                 </div>
                               )}
@@ -983,55 +890,32 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
                               <div className="message-footer">
                                 <span className="message-time">{formatTime(msg.createdAt)}</span>
                                 {selectedEmoji[msg._id] && (
-                                  <span className="message-emoji-reaction">
-                                    {selectedEmoji[msg._id]} 1
-                                  </span>
+                                  <span className="message-emoji-reaction">{selectedEmoji[msg._id]} 1</span>
                                 )}
                                 <div className="message-reaction">
-                                  <button
-                                    className="like-button"
-                                    onClick={() => toggleEmojiReactions(msg._id)}
-                                  >
+                                  <button className="like-button" onClick={() => toggleEmojiReactions(msg._id)}>
                                     👍
                                   </button>
                                   {showEmojiReactions === msg._id && (
                                     <div className="emoji-reaction-picker">
-                                      <button onClick={() => handleEmojiReaction(msg._id, '👍')}>
-                                        👍
-                                      </button>
-                                      <button onClick={() => handleEmojiReaction(msg._id, '❤️')}>
-                                        ❤️
-                                      </button>
-                                      <button onClick={() => handleEmojiReaction(msg._id, '😂')}>
-                                        😂
-                                      </button>
-                                      <button onClick={() => handleEmojiReaction(msg._id, '😮')}>
-                                        😮
-                                      </button>
-                                      <button onClick={() => handleEmojiReaction(msg._id, '😢')}>
-                                        😢
-                                      </button>
-                                      <button onClick={() => handleEmojiReaction(msg._id, '😡')}>
-                                        😡
-                                      </button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '👍')}>👍</button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '❤️')}>❤️</button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😂')}>😂</button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😮')}>😮</button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😢')}>😢</button>
+                                      <button onClick={() => handleEmojiReaction(msg._id, '😡')}>😡</button>
                                     </div>
                                   )}
                                 </div>
-                                {(msg.senderId?._id || msg.senderId) === user?._id
- && (
+                                {(msg.senderId?._id || msg.senderId) === user?._id && (
                                   <div className="message-options">
                                     <button onClick={() => handleMessageOptions(msg._id)}>...</button>
                                     {showMessageOptions === msg._id && (
                                       <div className="chat-message-options-dropdown">
-                                        <button onClick={() => recallMessage(msg._id)}>
-                                          Thu hồi
-                                        </button>
+                                        <button onClick={() => recallMessage(msg._id)}>Thu hồi</button>
                                         <button
                                           onClick={() =>
-                                            editMessage(
-                                              msg._id,
-                                              prompt('Nhập nội dung mới:', msg.content)
-                                            )
+                                            editMessage(msg._id, prompt('Nhập nội dung mới:', msg.content))
                                           }
                                         >
                                           Chỉnh sửa
