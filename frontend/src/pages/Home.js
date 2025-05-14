@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
@@ -171,8 +170,10 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     const handleReceiveMessage = (message) => {
       if (!message || !message.receiverId) return;
 
+      // Kiểm tra xem tin nhắn đã tồn tại chưa để tránh trùng lặp
       if (messages.some((msg) => msg._id === message._id)) return;
 
+      // Cập nhật groupMessages nếu là tin nhắn nhóm
       if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -181,6 +182,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             : [{ ...message, isRead: user?._id !== message.senderId?._id }],
         }));
       } else {
+        // Cập nhật friendMessages nếu là tin nhắn cá nhân
         const senderId = message.senderId?._id || message.senderId;
         const friendId = senderId === user?._id ? message.receiverId : senderId;
 
@@ -192,6 +194,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         }));
       }
 
+      // Cập nhật messages nếu đang ở trong cuộc trò chuyện đúng
       if (selectedChat && selectedChat._id === message.receiverId) {
         setMessages((prev) => {
           if (!Array.isArray(prev) || prev.some((msg) => msg._id === message._id)) return prev;
@@ -203,6 +206,13 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     socket.on('receiveMessage', handleReceiveMessage);
     return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [user, selectedChat, socket, messages]);
+
+  // Thêm useEffect để tự động cuộn xuống tin nhắn mới
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (selectedChat && user && user._id && selectedChat._id) {
@@ -384,7 +394,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     setSelectedProfile(null);
     setSelectedGroup(null);
     setCurrentView('chat');
-    if (Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user?._id)) {
+    if (Array.isArray(messages) && messages.some((msg) => !msg.isRead && msg.senderId?._id !== user._id)) {
       await markAsRead();
     }
   };
