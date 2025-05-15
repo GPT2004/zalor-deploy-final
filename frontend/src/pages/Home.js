@@ -11,7 +11,6 @@ import {
   deleteGroup,
   getMessages,
   markMessagesAsRead,
-  sendMessage as apiSendMessage,
   recallMessage as apiRecallMessage,
   editMessage as apiEditMessage,
 } from '../services/api';
@@ -48,9 +47,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
   const [friendMessages, setFriendMessages] = useState({});
   const [groupMessages, setGroupMessages] = useState({});
   const messagesEndRef = useRef(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Trạng thái để hiển thị/ẩn sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Fetch dữ liệu ban đầu
+  // Lấy dữ liệu ban đầu khi component được tải
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -72,7 +71,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             const { data: messages } = await getMessages(friend._id, false);
             friendMessagesData[friend._id] = Array.isArray(messages) ? messages : [];
           } catch (err) {
-            console.error(`Error fetching messages for friend ${friend._id}:`, err);
+            console.error(`Lỗi khi lấy tin nhắn của bạn ${friend._id}:`, err);
             friendMessagesData[friend._id] = [];
           }
         }
@@ -84,13 +83,13 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             const { data: messages } = await getMessages(group._id, true);
             groupMessagesData[group._id] = Array.isArray(messages) ? messages : [];
           } catch (err) {
-            console.error(`Error fetching messages for group ${group._id}:`, err);
+            console.error(`Lỗi khi lấy tin nhắn của nhóm ${group._id}:`, err);
             groupMessagesData[group._id] = [];
           }
         }
         setGroupMessages(groupMessagesData);
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error('Lỗi khi lấy dữ liệu:', err);
         if (err.response && err.response.status === 401) {
           localStorage.removeItem('token');
           setIsAuthenticated(false);
@@ -108,14 +107,14 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     fetchData();
   }, [navigate, setIsAuthenticated]);
 
-  // Kết nối socket
+  // Kết nối socket khi userId thay đổi
   useEffect(() => {
     if (userId) {
       socket.emit('userConnected', userId);
     }
   }, [userId, socket]);
 
-  // Xử lý đọc tin nhắn
+  // Xử lý khi tin nhắn được đánh dấu là đã đọc
   useEffect(() => {
     const handleMessageRead = ({ receiverId, senderId }) => {
       if (!selectedChat || !user || !user._id) return;
@@ -147,7 +146,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('messageRead', handleMessageRead);
   }, [selectedChat, user, socket]);
 
-  // Xử lý trạng thái người dùng
+  // Xử lý trạng thái online/offline của người dùng
   useEffect(() => {
     const handleUserStatus = ({ userId, isOnline }) => {
       setFriends((prev) =>
@@ -171,13 +170,15 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('userStatus', handleUserStatus);
   }, [selectedChat, socket]);
 
-  // Xử lý nhận tin nhắn
+  // Xử lý nhận tin nhắn từ server qua WebSocket
   useEffect(() => {
     const handleReceiveMessage = (message) => {
-      if (!message || !message.receiverId) return;
+      if (!message || !message.receiverId) return; // Bỏ qua nếu tin nhắn không hợp lệ
 
+      // Kiểm tra xem tin nhắn đã tồn tại trong danh sách chưa
       if (messages.some((msg) => msg._id === message._id)) return;
 
+      // Cập nhật danh sách tin nhắn nhóm hoặc bạn bè
       if (message.isGroup) {
         setGroupMessages((prev) => ({
           ...prev,
@@ -197,6 +198,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         }));
       }
 
+      // Cập nhật danh sách tin nhắn của cuộc trò chuyện đang chọn
       if (selectedChat) {
         if (message.isGroup && selectedChat._id === message.receiverId) {
           setMessages((prev) => {
@@ -220,14 +222,14 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
     return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [user, selectedChat, socket, messages]);
 
-  // Tự động cuộn đến tin nhắn mới nhất
+  // Tự động cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
-  // Tham gia phòng chat và lấy tin nhắn
+  // Tham gia phòng chat và lấy tin nhắn khi chọn cuộc trò chuyện
   useEffect(() => {
     if (selectedChat && user && user._id && selectedChat._id) {
       const roomId = selectedChat.isGroup
@@ -252,7 +254,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
             }));
           }
         } catch (err) {
-          console.error('Error fetching messages:', err);
+          console.error('Lỗi khi lấy tin nhắn:', err);
           setMessages([]);
         }
       };
@@ -295,7 +297,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
           }));
         }
       } catch (err) {
-        console.error('Error marking as read:', err);
+        console.error('Lỗi khi đánh dấu đã đọc:', err);
       }
     }
   };
@@ -397,7 +399,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       setSelectedChat(null);
       alert('Xóa nhóm thành công!');
     } catch (err) {
-      console.error('Error deleting group:', err);
+      console.error('Lỗi khi xóa nhóm:', err);
       alert(err.response?.data?.msg || 'Xóa nhóm thất bại. Vui lòng thử lại.');
     }
   };
@@ -428,72 +430,47 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       setSelectedGroup(null);
       setCurrentView('chat');
     } else {
-      console.error('Friend not found in friends list:', userId);
+      console.error('Không tìm thấy bạn trong danh sách:', userId);
       alert('Không tìm thấy thông tin người dùng này trong danh sách bạn bè.');
     }
   };
 
+  // Hàm gửi tin nhắn đã được sửa để tránh lặp tin nhắn
   const sendMessage = async () => {
-    if (!message.trim() && !file) return;
+    if (!message.trim() && !file) return; // Nếu không có nội dung hoặc file, không gửi
 
     if (!selectedChat || !selectedChat._id || !user || !user._id) {
-      console.error('Cannot send message: selectedChat or user is null', { selectedChat, user });
+      console.error('Không thể gửi tin nhắn: selectedChat hoặc user bị null', { selectedChat, user });
       return;
     }
 
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const tempMessage = {
-      _id: tempId,
-      senderId: user._id,
-      receiverId: selectedChat._id,
-      content: message,
-      type: file
-        ? file.type.startsWith('image')
-          ? 'image'
-          : file.type.startsWith('video')
-          ? 'video'
-          : 'file'
-        : 'text',
-      createdAt: new Date().toISOString(),
-      isRecalled: false,
-      isRead: true,
-      isGroup: selectedChat.isGroup,
-      file,
-    };
-
-    setMessages((prev) => [...prev, tempMessage]);
-
     try {
-      const newMessage = await apiSendMessage(selectedChat._id, selectedChat.isGroup, message, file);
-      setMessages((prev) =>
-        prev
-          .filter((msg) => msg._id !== tempId)
-          .concat(newMessage)
-      );
+      // Chuẩn bị dữ liệu tin nhắn
+      const messagePayload = {
+        senderId: user._id,
+        receiverId: selectedChat._id,
+        content: message,
+        type: file
+          ? file.type.startsWith('image')
+            ? 'image'
+            : file.type.startsWith('video')
+            ? 'video'
+            : 'file'
+          : 'text',
+        isGroup: selectedChat.isGroup,
+        file,
+      };
 
-      if (selectedChat.isGroup) {
-        setGroupMessages((prev) => ({
-          ...prev,
-          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-            ? [...prev[selectedChat._id], newMessage]
-            : [newMessage],
-        }));
-      } else {
-        setFriendMessages((prev) => ({
-          ...prev,
-          [selectedChat._id]: Array.isArray(prev[selectedChat._id])
-            ? [...prev[selectedChat._id], newMessage]
-            : [newMessage],
-        }));
-      }
+      // Gửi tin nhắn qua WebSocket
+      socket.emit('sendMessage', messagePayload);
 
+      // Xóa nội dung nhập sau khi gửi
       setMessage('');
       setFile(null);
       setPreview(null);
       setShowEmojiPicker(false);
     } catch (err) {
-      console.error('Error sending message:', err);
-      setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+      console.error('Lỗi khi gửi tin nhắn:', err);
     }
   };
 
@@ -505,7 +482,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       );
       setShowMessageOptions(null);
     } catch (err) {
-      console.error('Error recalling message:', err);
+      console.error('Lỗi khi thu hồi tin nhắn:', err);
     }
   };
 
@@ -517,7 +494,7 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
       );
       setShowMessageOptions(null);
     } catch (err) {
-      console.error('Error editing message:', err);
+      console.error('Lỗi khi chỉnh sửa tin nhắn:', err);
     }
   };
 
@@ -787,10 +764,9 @@ const Home = ({ onLogout, setIsAuthenticated, socket, userId }) => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Phần nội dung chính */}
       <div className="main-content">
         <div className="chat-header">
-          {/* Nút hamburger để hiển thị/ẩn sidebar trên điện thoại */}
           <button className="hamburger-menu" onClick={toggleSidebar}>
             ☰
           </button>
